@@ -25,6 +25,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tanilink.cat.model.ExamSubject
 import com.tanilink.cat.model.Question
+import com.tanilink.cat.proctoring.CameraProctoringView
+import com.tanilink.cat.proctoring.FaceStatus
+import com.tanilink.cat.proctoring.ProctoringViolation
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -36,6 +39,11 @@ fun ExamScreen(
     userAnswers: Map<Int, Int>,
     flaggedQuestions: Set<Int>,
     remainingSeconds: Long,
+    faceStatus: FaceStatus,
+    proctoringWarningText: String,
+    proctoringLogs: List<ProctoringViolation>,
+    violationCount: Int,
+    onFaceStatusChanged: (FaceStatus, String) -> Unit,
     onSelectAnswer: (Int, Int) -> Unit,
     onToggleFlag: (Int) -> Unit,
     onGoToQuestion: (Int) -> Unit,
@@ -46,6 +54,7 @@ fun ExamScreen(
 ) {
     var showGridSheet by remember { mutableStateOf(false) }
     var showSubmitDialog by remember { mutableStateOf(false) }
+    var showProctoringLogSheet by remember { mutableStateOf(false) }
 
     val currentQuestion = questions.getOrNull(currentIndex)
     val selectedOptionIndex = userAnswers[currentIndex]
@@ -61,6 +70,13 @@ fun ExamScreen(
         else -> Color(0xFF16A34A)
     }
 
+    val faceStatusColor = when (faceStatus) {
+        FaceStatus.OK -> Color(0xFF16A34A)
+        FaceStatus.LOOKING_AWAY -> Color(0xFFD97706)
+        FaceStatus.NO_FACE -> Color(0xFFDC2626)
+        FaceStatus.MULTIPLE_FACES -> Color(0xFFDC2626)
+    }
+
     Scaffold(
         topBar = {
             Surface(
@@ -70,7 +86,7 @@ fun ExamScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -95,28 +111,79 @@ fun ExamScreen(
                             )
                         }
 
-                        Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = timerColor.copy(alpha = 0.1f),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, timerColor.copy(alpha = 0.4f))
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = timerColor.copy(alpha = 0.1f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, timerColor.copy(alpha = 0.4f))
                             ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Timer,
+                                        contentDescription = null,
+                                        tint = timerColor,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = formattedTime,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = timerColor
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // AI Proctoring Live Banner Status Bar
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = faceStatusColor.copy(alpha = 0.12f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, faceStatusColor.copy(alpha = 0.3f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showProctoringLogSheet = true }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                                 Icon(
-                                    imageVector = Icons.Default.Timer,
+                                    imageVector = if (faceStatus == FaceStatus.OK) Icons.Default.Visibility else Icons.Default.Warning,
                                     contentDescription = null,
-                                    tint = timerColor,
-                                    modifier = Modifier.size(16.dp)
+                                    tint = faceStatusColor,
+                                    modifier = Modifier.size(18.dp)
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = formattedTime,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = timerColor
+                                    text = "AI Proctor: $proctoringWarningText",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = faceStatusColor
                                 )
+                            }
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (violationCount > 0) Color(0xFFFEE2E2) else Color(0xFFDCFCE7)
+                                ) {
+                                    Text(
+                                        text = "Pelanggaran: $violationCount/3",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (violationCount > 0) Color(0xFFDC2626) else Color(0xFF166534),
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -225,148 +292,162 @@ fun ExamScreen(
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         if (currentQuestion != null) {
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Button(
-                        onClick = onPreviousQuestion,
-                        enabled = currentIndex > 0,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        ),
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Sebelumnya", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    }
-
-                    if (isFlagged) {
-                        Surface(
-                            color = Color(0xFFFEF08A),
-                            shape = RoundedCornerShape(8.dp)
+                        Button(
+                            onClick = onPreviousQuestion,
+                            enabled = currentIndex > 0,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = MaterialTheme.colorScheme.onSurface
+                            ),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            Icon(Icons.Default.ArrowBack, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Sebelumnya", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+
+                        if (isFlagged) {
+                            Surface(
+                                color = Color(0xFFFEF08A),
+                                shape = RoundedCornerShape(8.dp)
                             ) {
-                                Icon(Icons.Default.Bookmark, contentDescription = null, tint = Color(0xFF854D0E), modifier = Modifier.size(14.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Ditandai Ragu", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF854D0E))
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.Bookmark, contentDescription = null, tint = Color(0xFF854D0E), modifier = Modifier.size(14.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Ditandai Ragu", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF854D0E))
+                                }
                             }
                         }
                     }
-                }
-
-                Card(
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        Text(
-                            text = "Pertanyaan ${currentIndex + 1}",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = subject.primaryColor
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = currentQuestion.prompt,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            lineHeight = 26.sp
-                        )
-                    }
-                }
-
-                Text(
-                    text = "Pilih Salah Satu Jawaban:",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                val labels = listOf("A", "B", "C", "D")
-                currentQuestion.options.forEachIndexed { optIdx, optionText ->
-                    val isSelected = selectedOptionIndex == optIdx
-
-                    val cardBgColor by animateColorAsState(
-                        targetValue = if (isSelected) subject.secondaryColor else MaterialTheme.colorScheme.surface,
-                        label = "cardBg"
-                    )
-                    val borderColor by animateColorAsState(
-                        targetValue = if (isSelected) subject.primaryColor else MaterialTheme.colorScheme.outline,
-                        label = "borderColor"
-                    )
 
                     Card(
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = cardBgColor),
-                        border = androidx.compose.foundation.BorderStroke(if (isSelected) 2.dp else 1.dp, borderColor),
-                        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 3.dp else 1.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onSelectAnswer(currentIndex, optIdx) }
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            Text(
+                                text = "Pertanyaan ${currentIndex + 1}",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = subject.primaryColor
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = currentQuestion.prompt,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                lineHeight = 26.sp
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Pilih Salah Satu Jawaban:",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    val labels = listOf("A", "B", "C", "D")
+                    currentQuestion.options.forEachIndexed { optIdx, optionText ->
+                        val isSelected = selectedOptionIndex == optIdx
+
+                        val cardBgColor by animateColorAsState(
+                            targetValue = if (isSelected) subject.secondaryColor else MaterialTheme.colorScheme.surface,
+                            label = "cardBg"
+                        )
+                        val borderColor by animateColorAsState(
+                            targetValue = if (isSelected) subject.primaryColor else MaterialTheme.colorScheme.outline,
+                            label = "borderColor"
+                        )
+
+                        Card(
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = cardBgColor),
+                            border = androidx.compose.foundation.BorderStroke(if (isSelected) 2.dp else 1.dp, borderColor),
+                            elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 3.dp else 1.dp),
                             modifier = Modifier
-                                .padding(16.dp)
-                                .fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
+                                .fillMaxWidth()
+                                .clickable { onSelectAnswer(currentIndex, optIdx) }
                         ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = if (isSelected) subject.primaryColor else MaterialTheme.colorScheme.surfaceVariant,
-                                modifier = Modifier.size(36.dp)
+                            Row(
+                                modifier = Modifier
+                                    .padding(16.dp)
+                                    .fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text(
-                                        text = labels.getOrElse(optIdx) { "" },
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp,
-                                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
+                                Surface(
+                                    shape = CircleShape,
+                                    color = if (isSelected) subject.primaryColor else MaterialTheme.colorScheme.surfaceVariant,
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = labels.getOrElse(optIdx) { "" },
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 15.sp,
+                                            color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.width(14.dp))
+
+                                Text(
+                                    text = optionText,
+                                    fontSize = 15.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = subject.primaryColor,
+                                        modifier = Modifier.size(24.dp)
                                     )
                                 }
                             }
-
-                            Spacer(modifier = Modifier.width(14.dp))
-
-                            Text(
-                                text = optionText,
-                                fontSize = 15.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.weight(1f)
-                            )
-
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = null,
-                                    tint = subject.primaryColor,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                // AI Front Camera Preview Overlay Thumbnail (Floating Top-Right)
+                CameraProctoringView(
+                    statusColor = faceStatusColor,
+                    onFaceStatusChanged = onFaceStatusChanged,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(16.dp)
+                )
             }
         }
     }
@@ -456,6 +537,78 @@ fun ExamScreen(
         }
     }
 
+    if (showProctoringLogSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showProctoringLogSheet = false },
+            containerColor = MaterialTheme.colorScheme.surface
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Security, contentDescription = null, tint = Color(0xFF4F46E5))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Log Catatan AI Proctoring",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                if (proctoringLogs.isEmpty()) {
+                    Text(
+                        text = "Belum ada catatan pelanggaran. Tetap pertahankan fokus kamu!",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        proctoringLogs.forEach { log ->
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ReportProblem,
+                                        contentDescription = null,
+                                        tint = Color(0xFFDC2626),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            text = log.type.name.replace("_", " "),
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFFDC2626)
+                                        )
+                                        Text(
+                                            text = log.description,
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+    }
+
     if (showSubmitDialog) {
         val totalAnswered = userAnswers.size
         val totalFlagged = flaggedQuestions.size
@@ -508,6 +661,7 @@ fun ExamScreen(
         )
     }
 }
+
 
 @Composable
 fun LegendItem(color: Color, label: String) {

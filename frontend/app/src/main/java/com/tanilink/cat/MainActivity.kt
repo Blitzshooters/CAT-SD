@@ -1,6 +1,7 @@
 package com.tanilink.cat
 
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -12,13 +13,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.tanilink.cat.model.AppThemeOption
 import com.tanilink.cat.model.MainTab
@@ -34,6 +39,20 @@ class MainActivity : ComponentActivity() {
         setContent {
             val viewModel: ExamViewModel = viewModel()
             val themeOption by viewModel.themeOption.collectAsState()
+            val currentScreen by viewModel.currentScreen.collectAsState()
+            val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+
+            // Dynamic FLAG_SECURE for Anti-Screenshot & Screen Capture during Exam
+            DisposableEffect(currentScreen) {
+                if (currentScreen == ScreenState.EXAM) {
+                    window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                } else {
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                }
+                onDispose {
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                }
+            }
 
             val isDarkTheme = when (themeOption) {
                 AppThemeOption.LIGHT -> false
@@ -46,12 +65,21 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    CatAppNavigation(viewModel = viewModel)
+                    if (!isLoggedIn) {
+                        LoginScreen(
+                            onLoginSuccess = { name, avatar, token ->
+                                viewModel.login(name, avatar, token)
+                            }
+                        )
+                    } else {
+                        CatAppNavigation(viewModel = viewModel)
+                    }
                 }
             }
         }
     }
 }
+
 
 @Composable
 fun CatAppNavigation(viewModel: ExamViewModel) {
@@ -69,6 +97,24 @@ fun CatAppNavigation(viewModel: ExamViewModel) {
     val remainingSeconds by viewModel.remainingSeconds.collectAsState()
     val lastResult by viewModel.lastExamResult.collectAsState()
     val examHistory by viewModel.examHistory.collectAsState()
+    val faceStatus by viewModel.faceStatus.collectAsState()
+    val warningText by viewModel.proctoringWarningText.collectAsState()
+    val proctoringLogs by viewModel.proctoringLogs.collectAsState()
+    val violationCount by viewModel.violationCount.collectAsState()
+
+    // Switch-Tab Lifecycle Observer
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(currentScreen, lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_PAUSE && currentScreen == ScreenState.EXAM) {
+                viewModel.notifyAppSwitchTab()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     if (currentScreen == ScreenState.HOME) {
         Scaffold(
@@ -179,6 +225,13 @@ fun CatAppNavigation(viewModel: ExamViewModel) {
                             userAnswers = userAnswers,
                             flaggedQuestions = flaggedQuestions,
                             remainingSeconds = remainingSeconds,
+                            faceStatus = faceStatus,
+                            proctoringWarningText = warningText,
+                            proctoringLogs = proctoringLogs,
+                            violationCount = violationCount,
+                            onFaceStatusChanged = { status, desc ->
+                                viewModel.updateFaceStatus(status, desc)
+                            },
                             onSelectAnswer = { qIdx, optIdx ->
                                 viewModel.selectAnswer(qIdx, optIdx)
                             },

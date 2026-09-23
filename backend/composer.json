@@ -1,0 +1,28 @@
+{
+    "name": "laravel/cat-backend",
+    "type": "project",
+    "description": "CAT SD Backend API with JWT Auth, MySQL & AI Proctoring Loggers",
+    "keywords": ["laravel", "cat", "proctoring", "jwt"],
+    "license": "MIT",
+    "require": {
+        "php": "^8.1",
+        "guzzlehttp/guzzle": "^7.2",
+        "laravel/framework": "^10.10",
+        "laravel/sanctum": "^3.3",
+        "tymon/jwt-auth": "^2.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/",
+            "Database\\Factories\\": "database/factories/",
+            "Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
