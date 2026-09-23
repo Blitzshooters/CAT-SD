@@ -16,10 +16,10 @@ class DatabaseSeeder extends Seeder
         // 4 Initial Student Accounts (password: unpkediri)
         // ──────────────────────────────────────────────
         $students = [
-            ['name' => 'Zam Zam',   'username' => 'zamzam',   'grade' => 5, 'avatar' => 'rabbit'],
-            ['name' => 'Yusuf',     'username' => 'yusuf',     'grade' => 5, 'avatar' => 'bear'],
-            ['name' => 'Yehosyua',  'username' => 'yehosyua',  'grade' => 5, 'avatar' => 'robot'],
-            ['name' => 'Cantika',   'username' => 'cantika',   'grade' => 5, 'avatar' => 'astronaut'],
+            ['name' => 'Zam Zam',   'username' => 'zamzam',   'grade' => 5, 'avatar' => 'rabbit',    'role' => 'admin'],
+            ['name' => 'Yusuf',     'username' => 'yusuf',     'grade' => 5, 'avatar' => 'bear',      'role' => 'student'],
+            ['name' => 'Yehosyua',  'username' => 'yehosyua',  'grade' => 5, 'avatar' => 'robot',     'role' => 'student'],
+            ['name' => 'Cantika',   'username' => 'cantika',   'grade' => 5, 'avatar' => 'astronaut', 'role' => 'student'],
         ];
 
         foreach ($students as $s) {
@@ -28,6 +28,7 @@ class DatabaseSeeder extends Seeder
                 'password' => Hash::make('unpkediri'),
                 'grade'    => $s['grade'],
                 'avatar'   => $s['avatar'],
+                'role'     => $s['role'],
             ]);
         }
 

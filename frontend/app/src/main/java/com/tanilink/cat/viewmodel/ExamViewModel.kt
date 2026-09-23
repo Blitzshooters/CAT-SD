@@ -1,12 +1,16 @@
 package com.tanilink.cat.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import android.content.Context
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.tanilink.cat.data.ExamDatabaseHelper
 import com.tanilink.cat.data.SampleData
 import com.tanilink.cat.model.*
 import com.tanilink.cat.proctoring.FaceStatus
 import com.tanilink.cat.proctoring.ProctoringViolation
 import com.tanilink.cat.proctoring.ViolationType
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,7 +19,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class ExamViewModel : ViewModel() {
+class ExamViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val dbHelper = ExamDatabaseHelper(application)
+    private val prefs = application.getSharedPreferences("cat_session_prefs", Context.MODE_PRIVATE)
 
     private val _studentName = MutableStateFlow("Zam Zam")
     val studentName: StateFlow<String> = _studentName.asStateFlow()
@@ -32,7 +39,10 @@ class ExamViewModel : ViewModel() {
     private val _isLoggedIn = MutableStateFlow(false)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
 
-    private val _themeOption = MutableStateFlow(AppThemeOption.SYSTEM)
+    private val _isAdmin = MutableStateFlow(false)
+    val isAdmin: StateFlow<Boolean> = _isAdmin.asStateFlow()
+
+    private val _themeOption = MutableStateFlow(AppThemeOption.LIGHT)
     val themeOption: StateFlow<AppThemeOption> = _themeOption.asStateFlow()
 
     private val _activeTab = MutableStateFlow(MainTab.EXAM_HOME)
@@ -84,23 +94,93 @@ class ExamViewModel : ViewModel() {
     private var timerJob: Job? = null
     private var lastAnswerTimeMs = 0L
 
-    fun login(name: String, avatar: UserAvatar, token: String) {
+    init {
+        val savedLoggedIn = prefs.getBoolean("is_logged_in", false)
+        if (savedLoggedIn) {
+            val savedName = prefs.getString("student_name", "Zam Zam") ?: "Zam Zam"
+            val savedIsAdmin = prefs.getBoolean("is_admin", false)
+            val savedToken = prefs.getString("jwt_token", "") ?: ""
+            val savedGrade = prefs.getInt("selected_grade", 5)
+            val savedAvatarId = prefs.getString("avatar_id", "av1") ?: "av1"
+            val foundAvatar = SampleData.avatars.find { it.id == savedAvatarId } ?: SampleData.avatars[0]
+
+            _studentName.value = savedName
+            _isAdmin.value = savedIsAdmin
+            _jwtToken.value = savedToken
+            _selectedGrade.value = savedGrade
+            _selectedAvatar.value = foundAvatar
+            _isLoggedIn.value = true
+        }
+        loadHistoryFromDatabase()
+    }
+
+    fun loadHistoryFromDatabase() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val savedHistory = if (_isAdmin.value) {
+                dbHelper.getAllExamResults()
+            } else {
+                dbHelper.getExamResultsForStudent(_studentName.value)
+            }
+            _examHistory.value = savedHistory
+        }
+    }
+
+    fun login(name: String, avatar: UserAvatar, token: String, isAdminUser: Boolean = false) {
         _studentName.value = name
         _selectedAvatar.value = avatar
         _jwtToken.value = token
+        _isAdmin.value = isAdminUser
         _isLoggedIn.value = true
         _currentScreen.value = ScreenState.HOME
+
+        prefs.edit()
+            .putBoolean("is_logged_in", true)
+            .putString("student_name", name)
+            .putBoolean("is_admin", isAdminUser)
+            .putString("jwt_token", token)
+            .putString("avatar_id", avatar.id)
+            .apply()
+
+        loadHistoryFromDatabase()
     }
 
     fun logout() {
         _isLoggedIn.value = false
+        _isAdmin.value = false
         _jwtToken.value = ""
+
+        prefs.edit()
+            .putBoolean("is_logged_in", false)
+            .remove("jwt_token")
+            .apply()
+    }
+
+    fun deleteExamResult(result: ExamResult) {
+        if (!_isAdmin.value) return // Only Admin can delete history
+        viewModelScope.launch(Dispatchers.IO) {
+            dbHelper.deleteExamResultByTimestamp(result.timestamp)
+            _examHistory.update { current -> current.filter { it.timestamp != result.timestamp } }
+        }
+    }
+
+    fun clearAllHistory() {
+        if (!_isAdmin.value) return // Only Admin can clear history
+        viewModelScope.launch(Dispatchers.IO) {
+            dbHelper.deleteAllExamResults()
+            _examHistory.value = emptyList()
+        }
     }
 
     fun updateStudentProfile(name: String, grade: Int, avatar: UserAvatar) {
         _studentName.value = name
         _selectedGrade.value = grade
         _selectedAvatar.value = avatar
+
+        prefs.edit()
+            .putString("student_name", name)
+            .putInt("selected_grade", grade)
+            .putString("avatar_id", avatar.id)
+            .apply()
     }
 
     fun setThemeOption(option: AppThemeOption) {
@@ -109,6 +189,7 @@ class ExamViewModel : ViewModel() {
 
     fun selectGrade(grade: Int) {
         _selectedGrade.value = grade
+        prefs.edit().putInt("selected_grade", grade).apply()
     }
 
     fun selectTab(tab: MainTab) {
@@ -155,16 +236,30 @@ class ExamViewModel : ViewModel() {
         }
     }
 
+    private var lastFaceViolationTimeMs = 0L
+
     fun updateFaceStatus(status: FaceStatus, warningText: String) {
         _faceStatus.value = status
         _proctoringWarningText.value = warningText
         if (status != FaceStatus.OK && _currentScreen.value == ScreenState.EXAM) {
+            val currentTime = System.currentTimeMillis()
             val type = when (status) {
                 FaceStatus.NO_FACE -> ViolationType.NO_FACE
                 FaceStatus.MULTIPLE_FACES -> ViolationType.MULTIPLE_FACES
                 else -> ViolationType.LOOKING_AWAY
             }
             addProctoringViolation(type, warningText)
+
+            // Sanction: Increment violation count every 3s of persistent violation
+            if (currentTime - lastFaceViolationTimeMs >= 3000L) {
+                lastFaceViolationTimeMs = currentTime
+                _violationCount.update { it + 1 }
+
+                // Auto-submit penalty if violations >= 3
+                if (_violationCount.value >= 3) {
+                    submitExam()
+                }
+            }
         }
     }
 
@@ -271,6 +366,12 @@ class ExamViewModel : ViewModel() {
 
         _lastExamResult.value = result
         _examHistory.update { listOf(result) + it }
+
+        // Save permanently to SQLite Database
+        viewModelScope.launch(Dispatchers.IO) {
+            dbHelper.saveExamResult(_studentName.value, result)
+        }
+
         _currentScreen.value = ScreenState.RESULT
     }
 

@@ -35,7 +35,8 @@ fun ProfileScreen(
     themeOption: AppThemeOption,
     examHistory: List<ExamResult>,
     onUpdateProfile: (String, Int, UserAvatar) -> Unit,
-    onSelectTheme: (AppThemeOption) -> Unit
+    onSelectTheme: (AppThemeOption) -> Unit,
+    onLogout: () -> Unit = {}
 ) {
     var nameInput by remember(studentName) { mutableStateOf(studentName) }
     var tempGrade by remember(selectedGrade) { mutableStateOf(selectedGrade) }
@@ -56,7 +57,12 @@ fun ProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Profil Siswa SD", fontWeight = FontWeight.Bold) },
+                title = { Text("Profil Pengguna SD", fontWeight = FontWeight.Bold) },
+                actions = {
+                    IconButton(onClick = onLogout) {
+                        Icon(Icons.Default.Logout, contentDescription = "Keluar Akun", tint = Color(0xFFDC2626))
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     titleContentColor = MaterialTheme.colorScheme.onSurface
@@ -377,6 +383,23 @@ fun ProfileScreen(
                             )
                         }
                     }
+                }
+            }
+
+            // Logout Button
+            item {
+                OutlinedButton(
+                    onClick = onLogout,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFCA5A5)),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                ) {
+                    Icon(Icons.Default.Logout, contentDescription = null, tint = Color(0xFFDC2626))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Keluar dari Akun (Logout)", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 }
             }
 

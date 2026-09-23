@@ -1,5 +1,6 @@
 package com.tanilink.cat.proctoring
 
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
@@ -12,6 +13,10 @@ class FaceProctoringAnalyzer(
     private val onFaceStatusChanged: (FaceStatus, String) -> Unit
 ) : ImageAnalysis.Analyzer {
 
+    companion object {
+        private const val TAG = "CAT_FaceProctor"
+    }
+
     private val options = FaceDetectorOptions.Builder()
         .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
         .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_NONE)
@@ -21,6 +26,11 @@ class FaceProctoringAnalyzer(
 
     private val detector = FaceDetection.getClient(options)
     private var lastAnalysisTime = 0L
+    private var frameCount = 0
+
+    init {
+        Log.i(TAG, "FaceProctoringAnalyzer initialized — ML Kit Face Detection READY")
+    }
 
     @OptIn(ExperimentalGetImage::class)
     override fun analyze(imageProxy: ImageProxy) {
@@ -31,6 +41,7 @@ class FaceProctoringAnalyzer(
             return
         }
         lastAnalysisTime = currentTime
+        frameCount++
 
         val mediaImage = imageProxy.image
         if (mediaImage != null) {
@@ -39,9 +50,11 @@ class FaceProctoringAnalyzer(
                 .addOnSuccessListener { faces ->
                     when {
                         faces.isEmpty() -> {
+                            Log.w(TAG, "[Frame #$frameCount] NO_FACE — Wajah tidak terdeteksi")
                             onFaceStatusChanged(FaceStatus.NO_FACE, "Wajah siswa tidak terdeteksi! Mohon tetap menghadap kamera.")
                         }
                         faces.size > 1 -> {
+                            Log.w(TAG, "[Frame #$frameCount] MULTIPLE_FACES — ${faces.size} wajah terdeteksi!")
                             onFaceStatusChanged(FaceStatus.MULTIPLE_FACES, "Terdeteksi lebih dari 1 orang! Harap kerjakan ujian sendiri.")
                         }
                         else -> {
@@ -50,15 +63,17 @@ class FaceProctoringAnalyzer(
                             val rotZ = face.headEulerAngleZ // Head tilt
 
                             if (rotY > 25 || rotY < -25 || rotZ > 25 || rotZ < -25) {
+                                Log.w(TAG, "[Frame #$frameCount] LOOKING_AWAY — rotY=${"%.1f".format(rotY)}° rotZ=${"%.1f".format(rotZ)}°")
                                 onFaceStatusChanged(FaceStatus.LOOKING_AWAY, "Pandangan menoleh ke luar layar! Mohon fokus ke soal.")
                             } else {
+                                Log.i(TAG, "[Frame #$frameCount] OK — 1 wajah, rotY=${"%.1f".format(rotY)}° rotZ=${"%.1f".format(rotZ)}°")
                                 onFaceStatusChanged(FaceStatus.OK, "Fokus Terjaga")
                             }
                         }
                     }
                 }
-                .addOnFailureListener {
-                    // Ignore transient ML Kit processing errors
+                .addOnFailureListener { e ->
+                    Log.e(TAG, "[Frame #$frameCount] ML Kit error: ${e.message}")
                 }
                 .addOnCompleteListener {
                     imageProxy.close()
@@ -68,3 +83,4 @@ class FaceProctoringAnalyzer(
         }
     }
 }
+

@@ -31,9 +31,13 @@ import java.util.Locale
 @Composable
 fun HistoryScreen(
     examHistory: List<ExamResult>,
-    onOpenReview: (ExamResult) -> Unit
+    isAdmin: Boolean = false,
+    onOpenReview: (ExamResult) -> Unit,
+    onDeleteResult: ((ExamResult) -> Unit)? = null,
+    onClearAllHistory: (() -> Unit)? = null
 ) {
     var selectedFilterSubject by remember { mutableStateOf("ALL") }
+    var showClearConfirmDialog by remember { mutableStateOf(false) }
 
     val filteredHistory = remember(examHistory, selectedFilterSubject) {
         if (selectedFilterSubject == "ALL") {
@@ -47,10 +51,42 @@ fun HistoryScreen(
     val avgScore = if (totalExams > 0) examHistory.map { it.score }.average().toInt() else 0
     val maxScore = if (totalExams > 0) examHistory.maxOf { it.score } else 0
 
+    if (showClearConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearConfirmDialog = false },
+            icon = { Icon(Icons.Default.DeleteSweep, contentDescription = null, tint = Color(0xFFDC2626)) },
+            title = { Text("Hapus Semua Riwayat Ujian?", fontWeight = FontWeight.Bold) },
+            text = { Text("Tindakan ini hanya dapat dilakukan oleh Admin. Seluruh riwayat hasil ujian dari database akan dihapus permanen.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onClearAllHistory?.invoke()
+                        showClearConfirmDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
+                ) {
+                    Text("Hapus Semua", fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showClearConfirmDialog = false }) {
+                    Text("Batal")
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Riwayat Hasil Ujian", fontWeight = FontWeight.Bold) },
+                actions = {
+                    if (isAdmin && examHistory.isNotEmpty()) {
+                        IconButton(onClick = { showClearConfirmDialog = true }) {
+                            Icon(Icons.Default.DeleteSweep, contentDescription = "Hapus Semua Riwayat", tint = Color(0xFFDC2626))
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     titleContentColor = MaterialTheme.colorScheme.onSurface
@@ -386,15 +422,32 @@ fun HistoryScreen(
                                     StatChip(label = "Waktu", value = timeStr, color = Color(0xFF2563EB))
                                 }
 
-                                Button(
-                                    onClick = { onOpenReview(result) },
-                                    colors = ButtonDefaults.buttonColors(containerColor = subjectColor),
-                                    shape = RoundedCornerShape(10.dp),
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                                ) {
-                                    Text("Pembahasan", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (isAdmin && onDeleteResult != null) {
+                                        IconButton(
+                                            onClick = { onDeleteResult(result) },
+                                            modifier = Modifier.size(34.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Delete,
+                                                contentDescription = "Hapus Riwayat Ujian",
+                                                tint = Color(0xFFDC2626),
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                    }
+
+                                    Button(
+                                        onClick = { onOpenReview(result) },
+                                        colors = ButtonDefaults.buttonColors(containerColor = subjectColor),
+                                        shape = RoundedCornerShape(10.dp),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                    ) {
+                                        Text("Pembahasan", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
+                                    }
                                 }
                             }
                         }

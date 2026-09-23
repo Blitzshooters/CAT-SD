@@ -43,6 +43,7 @@ fun ExamScreen(
     proctoringWarningText: String,
     proctoringLogs: List<ProctoringViolation>,
     violationCount: Int,
+    isAdmin: Boolean = false,
     onFaceStatusChanged: (FaceStatus, String) -> Unit,
     onSelectAnswer: (Int, Int) -> Unit,
     onToggleFlag: (Int) -> Unit,
@@ -172,6 +173,22 @@ fun ExamScreen(
                             }
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (isAdmin) {
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color(0xFF7C3AED)
+                                    ) {
+                                        Text(
+                                            text = "👑 ADMIN",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                }
+
                                 Surface(
                                     shape = RoundedCornerShape(8.dp),
                                     color = if (violationCount > 0) Color(0xFFFEE2E2) else Color(0xFFDCFCE7)
@@ -341,97 +358,162 @@ fun ExamScreen(
                         }
                     }
 
-                    Card(
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(20.dp)) {
-                            Text(
-                                text = "Pertanyaan ${currentIndex + 1}",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = subject.primaryColor
-                            )
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Text(
-                                text = currentQuestion.prompt,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                lineHeight = 26.sp
-                            )
-                        }
-                    }
-
-                    Text(
-                        text = "Pilih Salah Satu Jawaban:",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    val labels = listOf("A", "B", "C", "D")
-                    currentQuestion.options.forEachIndexed { optIdx, optionText ->
-                        val isSelected = selectedOptionIndex == optIdx
-
-                        val cardBgColor by animateColorAsState(
-                            targetValue = if (isSelected) subject.secondaryColor else MaterialTheme.colorScheme.surface,
-                            label = "cardBg"
-                        )
-                        val borderColor by animateColorAsState(
-                            targetValue = if (isSelected) subject.primaryColor else MaterialTheme.colorScheme.outline,
-                            label = "borderColor"
-                        )
-
+                    if (faceStatus == FaceStatus.NO_FACE) {
                         Card(
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = cardBgColor),
-                            border = androidx.compose.foundation.BorderStroke(if (isSelected) 2.dp else 1.dp, borderColor),
-                            elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 3.dp else 1.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onSelectAnswer(currentIndex, optIdx) }
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF2F2)),
+                            border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFEF4444)),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Row(
+                            Column(
                                 modifier = Modifier
-                                    .padding(16.dp)
-                                    .fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Surface(
                                     shape = CircleShape,
-                                    color = if (isSelected) subject.primaryColor else MaterialTheme.colorScheme.surfaceVariant,
-                                    modifier = Modifier.size(36.dp)
+                                    color = Color(0xFFDC2626),
+                                    modifier = Modifier.size(60.dp)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
-                                        Text(
-                                            text = labels.getOrElse(optIdx) { "" },
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 15.sp,
-                                            color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
+                                        Icon(
+                                            imageVector = Icons.Default.VisibilityOff,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(32.dp)
                                         )
                                     }
                                 }
 
-                                Spacer(modifier = Modifier.width(14.dp))
+                                Spacer(modifier = Modifier.height(16.dp))
 
                                 Text(
-                                    text = optionText,
-                                    fontSize = 15.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.weight(1f)
+                                    text = "SOAL DISEMBUNYIKAN",
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF991B1B)
                                 )
 
-                                if (isSelected) {
-                                    Icon(
-                                        imageVector = Icons.Default.CheckCircle,
-                                        contentDescription = null,
-                                        tint = subject.primaryColor,
-                                        modifier = Modifier.size(24.dp)
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                Text(
+                                    text = "Wajah Anda tidak terdeteksi oleh kamera AI Proctoring!\nHarap posisikan wajah Anda tegak di depan kamera agar soal dan pilihan jawaban dapat terlihat kembali.",
+                                    fontSize = 13.sp,
+                                    color = Color(0xFF7F1D1D),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    lineHeight = 20.sp
+                                )
+
+                                Spacer(modifier = Modifier.height(14.dp))
+
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = Color(0xFFFEE2E2)
+                                ) {
+                                    Text(
+                                        text = "⚠️ Pelanggaran dihitung jika wajah hilang selama 3 detik!",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFB91C1C),
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                                     )
+                                }
+                            }
+                        }
+                    } else {
+                        Card(
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(20.dp)) {
+                                Text(
+                                    text = "Pertanyaan ${currentIndex + 1}",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = subject.primaryColor
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(
+                                    text = currentQuestion.prompt,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    lineHeight = 26.sp
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = "Pilih Salah Satu Jawaban:",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        val labels = listOf("A", "B", "C", "D")
+                        currentQuestion.options.forEachIndexed { optIdx, optionText ->
+                            val isSelected = selectedOptionIndex == optIdx
+
+                            val cardBgColor by animateColorAsState(
+                                targetValue = if (isSelected) subject.secondaryColor else MaterialTheme.colorScheme.surface,
+                                label = "cardBg"
+                            )
+                            val borderColor by animateColorAsState(
+                                targetValue = if (isSelected) subject.primaryColor else MaterialTheme.colorScheme.outline,
+                                label = "borderColor"
+                            )
+
+                            Card(
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = cardBgColor),
+                                border = androidx.compose.foundation.BorderStroke(if (isSelected) 2.dp else 1.dp, borderColor),
+                                elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 3.dp else 1.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onSelectAnswer(currentIndex, optIdx) }
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .padding(16.dp)
+                                        .fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = if (isSelected) subject.primaryColor else MaterialTheme.colorScheme.surfaceVariant,
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Text(
+                                                text = labels.getOrElse(optIdx) { "" },
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 15.sp,
+                                                color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.width(14.dp))
+
+                                    Text(
+                                        text = optionText,
+                                        fontSize = 15.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.weight(1f)
+                                    )
+
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            tint = subject.primaryColor,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
                                 }
                             }
                         }

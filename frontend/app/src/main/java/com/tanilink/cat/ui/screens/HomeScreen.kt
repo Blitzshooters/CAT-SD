@@ -1,5 +1,6 @@
 package com.tanilink.cat.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -150,38 +151,41 @@ fun HomeScreen(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(14.dp))
                             HorizontalDivider(color = Color.White.copy(alpha = 0.2f))
                             Spacer(modifier = Modifier.height(12.dp))
 
-                            Text(
-                                text = "Pilih Tingkat Kelas SD (1 - 6):",
-                                color = Color.White.copy(alpha = 0.9f),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            // Grade Chips (1..6)
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                items(listOf(1, 2, 3, 4, 5, 6)) { grade ->
-                                    val isSelected = selectedGrade == grade
-                                    FilterChip(
-                                        selected = isSelected,
-                                        onClick = { onSelectGrade(grade) },
-                                        label = {
-                                            Text(
-                                                text = "Kelas $grade",
-                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                            )
-                                        },
-                                        colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = Color(0xFFFFC107),
-                                            selectedLabelColor = Color(0xFF1E293B),
-                                            containerColor = Color.White.copy(alpha = 0.15f),
-                                            labelColor = Color.White
-                                        ),
-                                        shape = RoundedCornerShape(12.dp)
+                            // Glassmorphic container for active grade status
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = Color.White.copy(alpha = 0.15f),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier
+                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                        .fillMaxWidth()
+                                ) {
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color(0xFFFFD54F)
+                                    ) {
+                                        Text(
+                                            text = "Kelas $selectedGrade SD",
+                                            color = Color(0xFF1E293B),
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        )
+                                    }
+                                    Text(
+                                        text = "Tingkat Ujian Aktif",
+                                        color = Color.White.copy(alpha = 0.95f),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium
                                     )
                                 }
                             }

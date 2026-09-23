@@ -20,23 +20,26 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tanilink.cat.data.SampleData
-import com.tanilink.cat.model.UserAvatar
+import com.tanilink.cat.model.*
+
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
-    onLoginSuccess: (String, UserAvatar, String) -> Unit // name, avatar, token
+    onLoginSuccess: (String, UserAvatar, String, Boolean) -> Unit // name, avatar, token, isAdmin
 ) {
     var selectedUsername by remember { mutableStateOf("zamzam") }
-    var passwordInput by remember { mutableStateOf("unpkediri") }
+    var passwordInput by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
 
     val accounts = listOf(
-        Triple("zamzam", "Zam Zam", SampleData.avatars[0]),
-        Triple("yusuf", "Yusuf", SampleData.avatars[1]),
-        Triple("yehosyua", "Yehosyua", SampleData.avatars[2]),
-        Triple("cantika", "Cantika", SampleData.avatars[3])
+        Quadruple("zamzam", "Zam Zam", SampleData.avatars[0], true),  // Admin
+        Quadruple("yusuf", "Yusuf", SampleData.avatars[1], false),   // Siswa
+        Quadruple("yehosyua", "Yehosyua", SampleData.avatars[2], false), // Siswa
+        Quadruple("cantika", "Cantika", SampleData.avatars[3], false)  // Siswa
     )
 
     Scaffold(
@@ -51,7 +54,8 @@ fun LoginScreen(
             Column(
                 modifier = Modifier
                     .widthIn(max = 420.dp)
-                    .padding(24.dp),
+                    .padding(24.dp)
+                    .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Header Logo Banner
@@ -59,7 +63,7 @@ fun LoginScreen(
                     shape = CircleShape,
                     color = Color(0xFF4F46E5),
                     modifier = Modifier
-                        .size(80.dp)
+                        .size(72.dp)
                         .shadow(8.dp, CircleShape)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -67,12 +71,12 @@ fun LoginScreen(
                             imageVector = Icons.Default.School,
                             contentDescription = null,
                             tint = Color.White,
-                            modifier = Modifier.size(42.dp)
+                            modifier = Modifier.size(38.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
                     text = "Aplikasi CAT Ujian SD",
@@ -81,31 +85,48 @@ fun LoginScreen(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "Login JWT Student Account",
+                    text = "Login JWT Student & Admin Account",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Account Selector Quick Cards
+                // Account Selector Quick Cards (Scrollable inside max height)
                 Card(
                     shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = "Pilih Akun Siswa (Default Password: unpkediri):",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "Pilih Akun Pengguna Ujian:",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "Scroll ↓",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
 
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            accounts.forEach { (uname, name, av) ->
+                        Column(
+                            modifier = Modifier
+                                .heightIn(max = 160.dp)
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            accounts.forEach { (uname, name, av, isAdmin) ->
                                 val isSelected = selectedUsername == uname
                                 Surface(
                                     shape = RoundedCornerShape(14.dp),
@@ -116,35 +137,50 @@ fun LoginScreen(
                                         .clickable { selectedUsername = uname }
                                 ) {
                                     Row(
-                                        modifier = Modifier.padding(12.dp),
+                                        modifier = Modifier.padding(10.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Surface(
                                             shape = CircleShape,
                                             color = av.backgroundColor,
-                                            modifier = Modifier.size(36.dp)
+                                            modifier = Modifier.size(34.dp)
                                         ) {
                                             Box(contentAlignment = Alignment.Center) {
                                                 Icon(
                                                     imageVector = getAvatarIcon(av.iconName),
                                                     contentDescription = null,
                                                     tint = Color(0xFF4F46E5),
-                                                    modifier = Modifier.size(20.dp)
+                                                    modifier = Modifier.size(18.dp)
                                                 )
                                             }
                                         }
 
-                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Spacer(modifier = Modifier.width(10.dp))
 
                                         Column(modifier = Modifier.weight(1f)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = name,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 14.sp,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Surface(
+                                                    shape = RoundedCornerShape(6.dp),
+                                                    color = if (isAdmin) Color(0xFF7C3AED) else Color(0xFF0284C7)
+                                                ) {
+                                                    Text(
+                                                        text = if (isAdmin) "ADMIN" else "SISWA",
+                                                        fontSize = 9.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color.White,
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    )
+                                                }
+                                            }
                                             Text(
-                                                text = name,
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 14.sp,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                            Text(
-                                                text = "Username: $uname",
+                                                text = if (isAdmin) "Username: $uname • Bebas Screenshot & Rekam" else "Username: $uname • Mode Proteksi Ujian",
                                                 fontSize = 11.sp,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
@@ -170,7 +206,11 @@ fun LoginScreen(
                 // Password Input Field
                 OutlinedTextField(
                     value = passwordInput,
-                    onValueChange = { passwordInput = it },
+                    onValueChange = {
+                        passwordInput = it
+                        if (errorMessage.isNotEmpty()) errorMessage = ""
+                    },
+                    isError = errorMessage.isNotEmpty(),
                     label = { Text("Kata Sandi (Password)") },
                     leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
                     trailingIcon = {
@@ -181,23 +221,23 @@ fun LoginScreen(
                             )
                         }
                     },
+                    supportingText = {
+                        if (errorMessage.isNotEmpty()) {
+                            Text(
+                                text = errorMessage,
+                                color = MaterialTheme.colorScheme.error,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    },
                     visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     singleLine = true,
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                if (errorMessage.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = errorMessage,
-                        color = Color(0xFFDC2626),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Login Button
                 Button(
@@ -206,17 +246,23 @@ fun LoginScreen(
                             val acc = accounts.find { it.first == selectedUsername }
                             if (acc != null) {
                                 val mockJwtToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.token_${acc.first}"
-                                onLoginSuccess(acc.second, acc.third, mockJwtToken)
+                                onLoginSuccess(acc.second, acc.third, mockJwtToken, acc.fourth)
                             }
                         } else {
-                            errorMessage = "Password salah! Gunakan: unpkediri"
+                            errorMessage = "Password yang Anda masukkan salah. Silakan periksa kembali."
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 6.dp,
+                        pressedElevation = 2.dp,
+                        disabledElevation = 0.dp
+                    ),
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp)
+                        .height(54.dp)
+                        .shadow(4.dp, RoundedCornerShape(16.dp))
                 ) {
                     Icon(Icons.Default.Login, contentDescription = null, tint = Color.White)
                     Spacer(modifier = Modifier.width(8.dp))

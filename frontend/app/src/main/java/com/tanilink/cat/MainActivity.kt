@@ -41,10 +41,12 @@ class MainActivity : ComponentActivity() {
             val themeOption by viewModel.themeOption.collectAsState()
             val currentScreen by viewModel.currentScreen.collectAsState()
             val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+            val isAdmin by viewModel.isAdmin.collectAsState()
 
             // Dynamic FLAG_SECURE for Anti-Screenshot & Screen Capture during Exam
-            DisposableEffect(currentScreen) {
-                if (currentScreen == ScreenState.EXAM) {
+            // Admin (Zam Zam) is exempted so admin can screen-record and screenshot exams
+            DisposableEffect(currentScreen, isAdmin) {
+                if (currentScreen == ScreenState.EXAM && !isAdmin) {
                     window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
                 } else {
                     window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
@@ -67,8 +69,8 @@ class MainActivity : ComponentActivity() {
                 ) {
                     if (!isLoggedIn) {
                         LoginScreen(
-                            onLoginSuccess = { name, avatar, token ->
-                                viewModel.login(name, avatar, token)
+                            onLoginSuccess = { name, avatar, token, isAdminUser ->
+                                viewModel.login(name, avatar, token, isAdminUser)
                             }
                         )
                     } else {
@@ -101,6 +103,7 @@ fun CatAppNavigation(viewModel: ExamViewModel) {
     val warningText by viewModel.proctoringWarningText.collectAsState()
     val proctoringLogs by viewModel.proctoringLogs.collectAsState()
     val violationCount by viewModel.violationCount.collectAsState()
+    val isAdmin by viewModel.isAdmin.collectAsState()
 
     // Switch-Tab Lifecycle Observer
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -188,8 +191,15 @@ fun CatAppNavigation(viewModel: ExamViewModel) {
                         MainTab.HISTORY -> {
                             HistoryScreen(
                                 examHistory = examHistory,
+                                isAdmin = isAdmin,
                                 onOpenReview = { result ->
                                     viewModel.openReview()
+                                },
+                                onDeleteResult = { result ->
+                                    viewModel.deleteExamResult(result)
+                                },
+                                onClearAllHistory = {
+                                    viewModel.clearAllHistory()
                                 }
                             )
                         }
@@ -206,6 +216,9 @@ fun CatAppNavigation(viewModel: ExamViewModel) {
                                 },
                                 onSelectTheme = { option ->
                                     viewModel.setThemeOption(option)
+                                },
+                                onLogout = {
+                                    viewModel.logout()
                                 }
                             )
                         }
@@ -229,6 +242,7 @@ fun CatAppNavigation(viewModel: ExamViewModel) {
                             proctoringWarningText = warningText,
                             proctoringLogs = proctoringLogs,
                             violationCount = violationCount,
+                            isAdmin = isAdmin,
                             onFaceStatusChanged = { status, desc ->
                                 viewModel.updateFaceStatus(status, desc)
                             },
