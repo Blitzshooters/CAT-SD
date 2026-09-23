@@ -144,24 +144,38 @@ fun ExamScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(
-                        onClick = { showGridSheet = true },
-                        modifier = Modifier
-                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.clickable { showGridSheet = true }
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.GridView,
-                            contentDescription = "Daftar Soal",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.GridView,
+                                contentDescription = "Daftar Soal",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Soal",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
 
                     OutlinedButton(
                         onClick = { onToggleFlag(currentIndex) },
+                        modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.outlinedButtonColors(
                             containerColor = if (isFlagged) Color(0xFFFEF08A) else Color.Transparent,
                             contentColor = if (isFlagged) Color(0xFF854D0E) else MaterialTheme.colorScheme.onSurfaceVariant
@@ -170,7 +184,8 @@ fun ExamScreen(
                             1.dp,
                             if (isFlagged) Color(0xFFEAB308) else MaterialTheme.colorScheme.outline
                         ),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp)
                     ) {
                         Icon(
                             imageVector = if (isFlagged) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
