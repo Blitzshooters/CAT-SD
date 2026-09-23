@@ -1,0 +1,21 @@
+# Gradle & Build files
+.gradle/
+build/
+**/build/
+*.apk
+*.aar
+
+# Local configuration
+local.properties
+**/local.properties
+
+# IDE files
+.idea/
+*.iml
+.DS_Store
+
+# Android Studio / Gradle generated
+frontend/.gradle/
+frontend/build/
+frontend/app/build/
+frontend/local.properties
