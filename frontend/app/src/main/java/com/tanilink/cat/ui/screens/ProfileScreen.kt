@@ -1,5 +1,8 @@
 package com.tanilink.cat.ui.screens
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -126,7 +130,7 @@ fun ProfileScreen(
                 }
             }
 
-            // Theme Mode Switcher Card
+            // Segmented Theme Toggle Card (Sangat Rapi & Elegan)
             item {
                 Card(
                     shape = RoundedCornerShape(20.dp),
@@ -138,42 +142,59 @@ fun ProfileScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Palette, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Tema Tampilan Aplikasi:",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                            Column {
+                                Text(
+                                    text = "Tema Tampilan Aplikasi",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Sesuaikan kenyamanan mata kamu saat belajar",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Segmented Control Pill Container
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            FilterChip(
-                                selected = themeOption == AppThemeOption.LIGHT,
-                                onClick = { onSelectTheme(AppThemeOption.LIGHT) },
-                                label = { Text("Terang ☀️", fontSize = 12.sp) },
-                                leadingIcon = { Icon(Icons.Default.LightMode, contentDescription = null, modifier = Modifier.size(16.dp)) },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                            FilterChip(
-                                selected = themeOption == AppThemeOption.DARK,
-                                onClick = { onSelectTheme(AppThemeOption.DARK) },
-                                label = { Text("Gelap 🌙", fontSize = 12.sp) },
-                                leadingIcon = { Icon(Icons.Default.DarkMode, contentDescription = null, modifier = Modifier.size(16.dp)) },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                            FilterChip(
-                                selected = themeOption == AppThemeOption.SYSTEM,
-                                onClick = { onSelectTheme(AppThemeOption.SYSTEM) },
-                                label = { Text("Sistem 📱", fontSize = 12.sp) },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp)
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .padding(4.dp)
+                                    .fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                SegmentedThemeOption(
+                                    modifier = Modifier.weight(1f),
+                                    title = "Terang",
+                                    icon = Icons.Default.LightMode,
+                                    isSelected = themeOption == AppThemeOption.LIGHT,
+                                    onClick = { onSelectTheme(AppThemeOption.LIGHT) }
+                                )
+
+                                SegmentedThemeOption(
+                                    modifier = Modifier.weight(1f),
+                                    title = "Gelap",
+                                    icon = Icons.Default.DarkMode,
+                                    isSelected = themeOption == AppThemeOption.DARK,
+                                    onClick = { onSelectTheme(AppThemeOption.DARK) }
+                                )
+
+                                SegmentedThemeOption(
+                                    modifier = Modifier.weight(1f),
+                                    title = "Sistem",
+                                    icon = Icons.Default.SettingsSuggest,
+                                    isSelected = themeOption == AppThemeOption.SYSTEM,
+                                    onClick = { onSelectTheme(AppThemeOption.SYSTEM) }
+                                )
+                            }
                         }
                     }
                 }
@@ -329,9 +350,9 @@ fun ProfileScreen(
                         .fillMaxWidth()
                         .height(52.dp)
                 ) {
-                    Icon(Icons.Default.Save, contentDescription = null)
+                    Icon(Icons.Default.Save, contentDescription = null, tint = Color.White)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Simpan Perubahan Profil", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text("Simpan Perubahan Profil", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)
                 }
             }
 
@@ -360,6 +381,48 @@ fun ProfileScreen(
             }
 
             item { Spacer(modifier = Modifier.height(24.dp)) }
+        }
+    }
+}
+
+@Composable
+fun SegmentedThemeOption(
+    modifier: Modifier = Modifier,
+    title: String,
+    icon: ImageVector,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val bgColor by animateColorAsState(
+        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+        label = "segmentedBg"
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+        label = "segmentedColor"
+    )
+
+    Surface(
+        modifier = modifier
+            .height(42.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onClick() },
+        color = bgColor,
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(imageVector = icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = title,
+                fontSize = 13.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                color = contentColor
+            )
         }
     }
 }
