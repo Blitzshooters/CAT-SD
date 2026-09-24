@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tanilink.cat.data.SampleData
@@ -42,6 +43,10 @@ fun ProfileScreen(
     var tempGrade by remember(selectedGrade) { mutableStateOf(selectedGrade) }
     var tempAvatar by remember(selectedAvatar) { mutableStateOf(selectedAvatar) }
     var isSavedShow by remember { mutableStateOf(false) }
+
+    var pendingGradeChange by remember { mutableStateOf<Int?>(null) }
+    var gradeCodeInput by remember { mutableStateOf("") }
+    var gradeCodeErrorMsg by remember { mutableStateOf<String?>(null) }
 
     val totalExams = examHistory.size
     val avgScore = if (totalExams > 0) examHistory.map { it.score }.average().toInt() else 0
@@ -279,7 +284,13 @@ fun ProfileScreen(
                                     val isSelected = tempGrade == g
                                     FilterChip(
                                         selected = isSelected,
-                                        onClick = { tempGrade = g },
+                                        onClick = {
+                                            if (g != tempGrade) {
+                                                pendingGradeChange = g
+                                                gradeCodeInput = ""
+                                                gradeCodeErrorMsg = null
+                                            }
+                                        },
                                         label = { Text("Kelas $g SD", fontWeight = FontWeight.Bold) },
                                         colors = FilterChipDefaults.filterChipColors(
                                             selectedContainerColor = Color(0xFFFFC107),
@@ -298,7 +309,13 @@ fun ProfileScreen(
                                     val isSelected = tempGrade == g
                                     FilterChip(
                                         selected = isSelected,
-                                        onClick = { tempGrade = g },
+                                        onClick = {
+                                            if (g != tempGrade) {
+                                                pendingGradeChange = g
+                                                gradeCodeInput = ""
+                                                gradeCodeErrorMsg = null
+                                            }
+                                        },
                                         label = { Text("Kelas $g SD", fontWeight = FontWeight.Bold) },
                                         colors = FilterChipDefaults.filterChipColors(
                                             selectedContainerColor = Color(0xFFFFC107),
@@ -405,6 +422,97 @@ fun ProfileScreen(
 
             item { Spacer(modifier = Modifier.height(24.dp)) }
         }
+    }
+
+    // Modal Dialog Code Entry to change grade level
+    if (pendingGradeChange != null) {
+        AlertDialog(
+            onDismissRequest = { pendingGradeChange = null },
+            icon = {
+                Surface(
+                    shape = CircleShape,
+                    color = Color(0xFFFEF3C7),
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = null,
+                            tint = Color(0xFFD97706),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            },
+            title = {
+                Text(
+                    text = "Ganti Tingkat Kelas SD",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Perubahan dari Kelas $tempGrade SD ke Kelas ${pendingGradeChange} SD memerlukan verifikasi kode khusus.",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Masukkan kode khusus untuk mengonfirmasi perpindahan tingkat kelas.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                    OutlinedTextField(
+                        value = gradeCodeInput,
+                        onValueChange = {
+                            gradeCodeInput = it
+                            gradeCodeErrorMsg = null
+                        },
+                        label = { Text("Kode Khusus (unpkediri)") },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        isError = gradeCodeErrorMsg != null,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (gradeCodeErrorMsg != null) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = gradeCodeErrorMsg!!,
+                            color = Color(0xFFDC2626),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (gradeCodeInput.trim().equals("unpkediri", ignoreCase = true)) {
+                            val targetGrade = pendingGradeChange!!
+                            tempGrade = targetGrade
+                            onUpdateProfile(nameInput, targetGrade, tempAvatar)
+                            pendingGradeChange = null
+                            isSavedShow = true
+                        } else {
+                            gradeCodeErrorMsg = "Kode khusus salah! Perubahan kelas dibatalkan."
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4F46E5)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Konfirmasi & Ubah", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingGradeChange = null }) {
+                    Text("Batal")
+                }
+            }
+        )
     }
 }
 
