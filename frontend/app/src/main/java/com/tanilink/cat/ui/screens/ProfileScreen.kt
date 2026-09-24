@@ -471,7 +471,7 @@ fun ProfileScreen(
                             gradeCodeInput = it
                             gradeCodeErrorMsg = null
                         },
-                        label = { Text("Kode Khusus (unpkediri)") },
+                        label = { Text("Kode Khusus") },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         isError = gradeCodeErrorMsg != null,

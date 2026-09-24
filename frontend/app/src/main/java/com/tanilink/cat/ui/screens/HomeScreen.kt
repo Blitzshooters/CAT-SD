@@ -306,7 +306,7 @@ fun HomeScreen(
                             unlockCodeInput = it
                             unlockErrorMsg = null
                         },
-                        label = { Text("Kode Khusus (unpkediri)") },
+                        label = { Text("Kode Khusus") },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         isError = unlockErrorMsg != null,
@@ -394,15 +394,18 @@ fun SubjectCard(
             Spacer(modifier = Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     Text(
                         text = subject.title,
-                        fontSize = 16.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1
                     )
                     if (isCompleted) {
-                        Spacer(modifier = Modifier.width(6.dp))
                         Surface(
                             shape = RoundedCornerShape(6.dp),
                             color = Color(0xFFFEF3C7),
@@ -410,18 +413,18 @@ fun SubjectCard(
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.5.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Lock,
                                     contentDescription = null,
                                     tint = Color(0xFFD97706),
-                                    modifier = Modifier.size(11.dp)
+                                    modifier = Modifier.size(10.dp)
                                 )
-                                Spacer(modifier = Modifier.width(3.dp))
+                                Spacer(modifier = Modifier.width(2.dp))
                                 Text(
                                     text = "Selesai",
-                                    fontSize = 10.sp,
+                                    fontSize = 9.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFFB45309)
                                 )
