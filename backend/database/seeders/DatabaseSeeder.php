@@ -13,13 +13,14 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // ──────────────────────────────────────────────
-        // 4 Initial Student Accounts (password: unpkediri)
+        // Initial Accounts (password: unpkediri)
         // ──────────────────────────────────────────────
         $students = [
-            ['name' => 'Zam Zam',   'username' => 'zamzam',   'grade' => 5, 'avatar' => 'rabbit',    'role' => 'admin'],
-            ['name' => 'Yusuf',     'username' => 'yusuf',     'grade' => 5, 'avatar' => 'bear',      'role' => 'student'],
-            ['name' => 'Yehosyua',  'username' => 'yehosyua',  'grade' => 5, 'avatar' => 'robot',     'role' => 'student'],
-            ['name' => 'Cantika',   'username' => 'cantika',   'grade' => 5, 'avatar' => 'astronaut', 'role' => 'student'],
+            ['name' => 'Admin Guru',  'username' => 'admin',    'grade' => 5, 'avatar' => 'champion',  'is_admin' => true],
+            ['name' => 'Zam Zam',     'username' => 'zamzam',   'grade' => 5, 'avatar' => 'rabbit',    'is_admin' => true],
+            ['name' => 'Yusuf',       'username' => 'yusuf',    'grade' => 5, 'avatar' => 'bear',      'is_admin' => false],
+            ['name' => 'Yehosyua',    'username' => 'yehosyua', 'grade' => 5, 'avatar' => 'robot',     'is_admin' => false],
+            ['name' => 'Cantika',     'username' => 'cantika',  'grade' => 5, 'avatar' => 'astronaut', 'is_admin' => false],
         ];
 
         foreach ($students as $s) {
@@ -28,7 +29,7 @@ class DatabaseSeeder extends Seeder
                 'password' => Hash::make('unpkediri'),
                 'grade'    => $s['grade'],
                 'avatar'   => $s['avatar'],
-                'role'     => $s['role'],
+                'is_admin' => $s['is_admin'],
             ]);
         }
 
@@ -36,10 +37,10 @@ class DatabaseSeeder extends Seeder
         // Subjects per Grade (Kelas 1-6, 4 Mata Pelajaran)
         // ──────────────────────────────────────────────
         $subjectDefs = [
-            ['title' => 'Matematika',        'duration_minutes' => 45],
-            ['title' => 'IPA',               'duration_minutes' => 45],
-            ['title' => 'Bahasa Indonesia',  'duration_minutes' => 45],
-            ['title' => 'PKn',               'duration_minutes' => 30],
+            ['title' => 'Matematika',        'duration_minutes' => 45, 'icon_name' => 'calculate', 'description' => 'Ujian Matematika Komprehensif'],
+            ['title' => 'IPA',               'duration_minutes' => 45, 'icon_name' => 'science',   'description' => 'Ilmu Pengetahuan Alam dan Lingkungan'],
+            ['title' => 'Bahasa Indonesia',  'duration_minutes' => 45, 'icon_name' => 'menu_book', 'description' => 'Tata Bahasa & Pemahaman Teks'],
+            ['title' => 'PKn',               'duration_minutes' => 30, 'icon_name' => 'flag',      'description' => 'Pendidikan Pancasila dan Kewarganegaraan'],
         ];
 
         for ($grade = 1; $grade <= 6; $grade++) {
@@ -49,6 +50,10 @@ class DatabaseSeeder extends Seeder
                     'grade' => $grade,
                 ], [
                     'duration_minutes' => $sd['duration_minutes'],
+                    'max_violations'   => 3,
+                    'remedy_code'      => 'REMEDI' . $grade,
+                    'icon_name'        => $sd['icon_name'],
+                    'description'      => $sd['description'],
                 ]);
 
                 // Seed 20 questions per subject per grade
@@ -70,8 +75,9 @@ class DatabaseSeeder extends Seeder
             Question::create([
                 'subject_id'           => $subject->id,
                 'prompt'               => $q['prompt'],
-                'options'              => json_encode($q['options']),
+                'options'              => $q['options'],
                 'correct_answer_index' => $q['correct'],
+                'explanation'          => $q['explanation'] ?? ('Pembahasan: Jawaban yang tepat adalah ' . $q['options'][$q['correct']]),
             ]);
         }
     }

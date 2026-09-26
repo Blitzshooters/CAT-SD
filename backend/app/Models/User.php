@@ -13,9 +13,11 @@ class User extends Authenticatable implements JWTSubject
     protected $fillable = [
         'name',
         'username',
+        'nomor_induk',
         'password',
         'grade',
         'avatar',
+        'is_admin',
     ];
 
     protected $hidden = [
@@ -24,6 +26,7 @@ class User extends Authenticatable implements JWTSubject
 
     protected $casts = [
         'grade' => 'integer',
+        'is_admin' => 'boolean',
     ];
 
     // JWT Subject methods
@@ -35,10 +38,12 @@ class User extends Authenticatable implements JWTSubject
     public function getJWTCustomClaims(): array
     {
         return [
-            'name'     => $this->name,
-            'username' => $this->username,
-            'grade'    => $this->grade,
-            'avatar'   => $this->avatar,
+            'name'        => $this->name,
+            'username'    => $this->username,
+            'nomor_induk' => $this->nomor_induk,
+            'grade'       => $this->grade,
+            'avatar'      => $this->avatar,
+            'is_admin'    => $this->is_admin,
         ];
     }
 

@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.tanilink.cat.data.CatApiClient
 import com.tanilink.cat.data.ExamDatabaseHelper
 import com.tanilink.cat.data.SampleData
 import com.tanilink.cat.model.*
@@ -26,6 +27,9 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _studentName = MutableStateFlow("Zam Zam")
     val studentName: StateFlow<String> = _studentName.asStateFlow()
+
+    private val _nomorInduk = MutableStateFlow("202401001")
+    val nomorInduk: StateFlow<String> = _nomorInduk.asStateFlow()
 
     private val _selectedGrade = MutableStateFlow(5)
     val selectedGrade: StateFlow<Int> = _selectedGrade.asStateFlow()
@@ -91,6 +95,21 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
     private val _violationCount = MutableStateFlow(0)
     val violationCount: StateFlow<Int> = _violationCount.asStateFlow()
 
+    private val _isExamLocked = MutableStateFlow(false)
+    val isExamLocked: StateFlow<Boolean> = _isExamLocked.asStateFlow()
+
+    private val _lockReason = MutableStateFlow("")
+    val lockReason: StateFlow<String> = _lockReason.asStateFlow()
+
+    private val _remedyError = MutableStateFlow<String?>(null)
+    val remedyError: StateFlow<String?> = _remedyError.asStateFlow()
+
+    private val _isVerifyingRemedy = MutableStateFlow(false)
+    val isVerifyingRemedy: StateFlow<Boolean> = _isVerifyingRemedy.asStateFlow()
+
+    private val _backendSubjects = MutableStateFlow<List<ExamSubject>>(emptyList())
+    val backendSubjects: StateFlow<List<ExamSubject>> = _backendSubjects.asStateFlow()
+
     private var timerJob: Job? = null
     private var lastAnswerTimeMs = 0L
 
@@ -112,6 +131,18 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
             _isLoggedIn.value = true
         }
         loadHistoryFromDatabase()
+        fetchSubjectsFromBackend(_selectedGrade.value)
+    }
+
+    fun fetchSubjectsFromBackend(grade: Int = _selectedGrade.value) {
+        viewModelScope.launch {
+            val remoteSubjects = CatApiClient.getSubjects(grade)
+            if (!remoteSubjects.isNullOrEmpty()) {
+                _backendSubjects.value = remoteSubjects
+            } else {
+                _backendSubjects.value = SampleData.subjects.map { it.copy(gradeLevel = grade) }
+            }
+        }
     }
 
     fun loadHistoryFromDatabase() {
@@ -125,7 +156,7 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun login(name: String, avatar: UserAvatar, token: String, isAdminUser: Boolean = false) {
+    fun login(name: String, avatar: UserAvatar, token: String, isAdminUser: Boolean = false, username: String = "") {
         _studentName.value = name
         _selectedAvatar.value = avatar
         _jwtToken.value = token
@@ -139,6 +170,7 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
             .putBoolean("is_admin", isAdminUser)
             .putString("jwt_token", token)
             .putString("avatar_id", avatar.id)
+            .putString("username", username)
             .apply()
 
         loadHistoryFromDatabase()
@@ -176,11 +208,57 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
         _selectedGrade.value = grade
         _selectedAvatar.value = avatar
 
+        val username = prefs.getString("username", "") ?: ""
         prefs.edit()
             .putString("student_name", name)
             .putInt("selected_grade", grade)
             .putString("avatar_id", avatar.id)
             .apply()
+
+        fetchSubjectsFromBackend(grade)
+
+        // Sync profil ke backend MySQL
+        if (username.isNotEmpty()) {
+            viewModelScope.launch {
+                CatApiClient.updateProfile(
+                    username = username,
+                    name = name,
+                    avatarId = avatar.id,
+                    grade = grade
+                )
+            }
+        }
+    }
+
+    fun changePassword(currentPass: String, newPass: String, onResult: (Boolean, String) -> Unit) {
+        val username = prefs.getString("username", "") ?: ""
+        if (username.isEmpty()) {
+            onResult(false, "Sesi login tidak valid. Silakan login ulang.")
+            return
+        }
+        viewModelScope.launch {
+            val (success, msg) = CatApiClient.changePassword(username, currentPass, newPass)
+            onResult(success, msg)
+        }
+    }
+
+    fun uploadCustomAvatar(base64Data: String, onResult: (Boolean, String) -> Unit) {
+        val username = prefs.getString("username", "") ?: ""
+        if (username.isEmpty()) {
+            onResult(false, "Sesi login tidak valid.")
+            return
+        }
+        viewModelScope.launch {
+            val uploadedUrl = CatApiClient.uploadAvatarBase64(username, base64Data)
+            if (uploadedUrl != null) {
+                val customAv = UserAvatar(id = "custom", name = "Foto Profil Saya", iconName = "Person", backgroundColor = androidx.compose.ui.graphics.Color(0xFF818CF8))
+                _selectedAvatar.value = customAv
+                prefs.edit().putString("avatar_id", "custom").apply()
+                onResult(true, "Foto profil berhasil diunggah!")
+            } else {
+                onResult(false, "Gagal mengunggah foto profil ke server.")
+            }
+        }
     }
 
     fun setThemeOption(option: AppThemeOption) {
@@ -190,6 +268,7 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
     fun selectGrade(grade: Int) {
         _selectedGrade.value = grade
         prefs.edit().putInt("selected_grade", grade).apply()
+        fetchSubjectsFromBackend(grade)
     }
 
     fun selectTab(tab: MainTab) {
@@ -197,16 +276,21 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun startExam(subject: ExamSubject) {
-        val loadedQuestions = SampleData.getQuestionsForSubjectAndGrade(subject.id, _selectedGrade.value)
         _currentSubject.value = subject
-        _questions.value = loadedQuestions
         _currentQuestionIndex.value = 0
         _userAnswers.value = emptyMap()
         _flaggedQuestions.value = emptySet()
         _proctoringLogs.value = emptyList()
         _violationCount.value = 0
+        _isExamLocked.value = false
+        _lockReason.value = ""
+        _remedyError.value = null
         _faceStatus.value = FaceStatus.OK
         _proctoringWarningText.value = "Fokus Terjaga"
+
+        // Load local fallback first
+        val fallback = SampleData.getQuestionsForSubjectAndGrade(subject.id, _selectedGrade.value)
+        _questions.value = fallback
 
         val totalSeconds = subject.durationMinutes * 60L
         _remainingSeconds.value = totalSeconds
@@ -215,6 +299,14 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
 
         _currentScreen.value = ScreenState.EXAM
         startTimer()
+
+        // Fetch latest questions from backend API if connected
+        viewModelScope.launch {
+            val remoteQuestions = CatApiClient.getQuestions(subject.id, _selectedGrade.value)
+            if (!remoteQuestions.isNullOrEmpty()) {
+                _questions.value = remoteQuestions
+            }
+        }
     }
 
     private fun startTimer() {
@@ -222,17 +314,56 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
         timerJob = viewModelScope.launch {
             while (_remainingSeconds.value > 0 && _currentScreen.value == ScreenState.EXAM) {
                 delay(1000L)
-                _remainingSeconds.update { it - 1 }
-                _elapsedTimeSeconds.update { it + 1 }
+                if (!_isExamLocked.value) {
+                    _remainingSeconds.update { it - 1 }
+                    _elapsedTimeSeconds.update { it + 1 }
 
-                // Periodic Snapshot simulation every 3 minutes
-                if (_elapsedTimeSeconds.value > 0 && _elapsedTimeSeconds.value % 180L == 0L) {
-                    addProctoringViolation(ViolationType.SNAPSHOT_CAPTURED, "Snapshot acak kamera depan berhasil diambil.")
+                    // Periodic Snapshot simulation every 3 minutes
+                    if (_elapsedTimeSeconds.value > 0 && _elapsedTimeSeconds.value % 180L == 0L) {
+                        addProctoringViolation(ViolationType.SNAPSHOT_CAPTURED, "Snapshot acak kamera depan berhasil diambil.")
+                    }
                 }
             }
-            if (_remainingSeconds.value <= 0 && _currentScreen.value == ScreenState.EXAM) {
+            if (_remainingSeconds.value <= 0 && _currentScreen.value == ScreenState.EXAM && !_isExamLocked.value) {
                 submitExam()
             }
+        }
+    }
+
+    private fun pauseTimer() {
+        timerJob?.cancel()
+    }
+
+    private fun resumeTimer() {
+        startTimer()
+    }
+
+    fun verifyAndResetRemedyCode(code: String) {
+        val subject = _currentSubject.value ?: return
+        val trimmed = code.trim()
+        if (trimmed.isEmpty()) {
+            _remedyError.value = "Masukkan kode remedi terlebih dahulu!"
+            return
+        }
+
+        _isVerifyingRemedy.value = true
+        _remedyError.value = null
+
+        viewModelScope.launch {
+            val localMatch = trimmed.equals(subject.remedyCode.trim(), ignoreCase = true)
+            val remoteMatch = CatApiClient.verifyRemedyCode(subject.id, trimmed)
+
+            if (localMatch || remoteMatch) {
+                _violationCount.value = 0
+                _isExamLocked.value = false
+                _lockReason.value = ""
+                _remedyError.value = null
+                addProctoringViolation(ViolationType.SNAPSHOT_CAPTURED, "Ujian dibuka kembali & pelanggaran direset oleh pengawas dengan kode '$trimmed'.")
+                resumeTimer()
+            } else {
+                _remedyError.value = "Kode remedi salah! Silakan tanyakan kode yang benar kepada pengawas."
+            }
+            _isVerifyingRemedy.value = false
         }
     }
 
@@ -241,6 +372,9 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
     fun updateFaceStatus(status: FaceStatus, warningText: String) {
         _faceStatus.value = status
         _proctoringWarningText.value = warningText
+
+        if (_isExamLocked.value) return // Don't record violations while locked
+
         if (status != FaceStatus.OK && _currentScreen.value == ScreenState.EXAM) {
             val currentTime = System.currentTimeMillis()
             val type = when (status) {
@@ -255,22 +389,29 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
                 lastFaceViolationTimeMs = currentTime
                 _violationCount.update { it + 1 }
 
-                // Auto-submit penalty if violations >= 3
-                if (_violationCount.value >= 3) {
-                    submitExam()
+                // Check maximum violation limit
+                val maxAllowed = _currentSubject.value?.maxViolations ?: 3
+                if (_violationCount.value >= maxAllowed) {
+                    pauseTimer()
+                    _isExamLocked.value = true
+                    _lockReason.value = "Pelanggaran mencapai batas maksimal (${_violationCount.value}/$maxAllowed)!"
                 }
             }
         }
     }
 
     fun notifyAppSwitchTab() {
+        if (_isExamLocked.value) return
+
         if (_currentScreen.value == ScreenState.EXAM) {
             _violationCount.update { it + 1 }
             addProctoringViolation(ViolationType.SWITCH_TAB, "Pindah aplikasi / keluar layar terdeteksi!")
 
-            // Auto-submit if violations >= 3
-            if (_violationCount.value >= 3) {
-                submitExam()
+            val maxAllowed = _currentSubject.value?.maxViolations ?: 3
+            if (_violationCount.value >= maxAllowed) {
+                pauseTimer()
+                _isExamLocked.value = true
+                _lockReason.value = "Pindah aplikasi terdeteksi! Pelanggaran mencapai batas ($maxAllowed kali)."
             }
         }
     }
@@ -367,9 +508,20 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
         _lastExamResult.value = result
         _examHistory.update { listOf(result) + it }
 
-        // Save permanently to SQLite Database
+        // Save permanently to SQLite Database & Backend MySQL
         viewModelScope.launch(Dispatchers.IO) {
             dbHelper.saveExamResult(_studentName.value, result)
+            CatApiClient.submitExamResult(
+                subjectId = subject.id,
+                grade = _selectedGrade.value,
+                score = score,
+                correctCount = correctCount,
+                wrongCount = wrongCount,
+                unansweredCount = unansweredCount,
+                totalQuestions = totalQ,
+                timeSpentSeconds = _elapsedTimeSeconds.value,
+                studentName = _studentName.value
+            )
         }
 
         _currentScreen.value = ScreenState.RESULT

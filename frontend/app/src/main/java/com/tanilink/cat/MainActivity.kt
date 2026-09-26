@@ -69,8 +69,8 @@ class MainActivity : ComponentActivity() {
                 ) {
                     if (!isLoggedIn) {
                         LoginScreen(
-                            onLoginSuccess = { name, avatar, token, isAdminUser ->
-                                viewModel.login(name, avatar, token, isAdminUser)
+                            onLoginSuccess = { name, avatar, token, isAdminUser, username ->
+                                viewModel.login(name, avatar, token, isAdminUser, username)
                             }
                         )
                     } else {
@@ -88,6 +88,7 @@ fun CatAppNavigation(viewModel: ExamViewModel) {
     val currentScreen by viewModel.currentScreen.collectAsState()
     val activeTab by viewModel.activeTab.collectAsState()
     val studentName by viewModel.studentName.collectAsState()
+    val nomorInduk by viewModel.nomorInduk.collectAsState()
     val selectedGrade by viewModel.selectedGrade.collectAsState()
     val selectedAvatar by viewModel.selectedAvatar.collectAsState()
     val themeOption by viewModel.themeOption.collectAsState()
@@ -104,6 +105,11 @@ fun CatAppNavigation(viewModel: ExamViewModel) {
     val proctoringLogs by viewModel.proctoringLogs.collectAsState()
     val violationCount by viewModel.violationCount.collectAsState()
     val isAdmin by viewModel.isAdmin.collectAsState()
+    val backendSubjects by viewModel.backendSubjects.collectAsState()
+    val isExamLocked by viewModel.isExamLocked.collectAsState()
+    val lockReason by viewModel.lockReason.collectAsState()
+    val remedyError by viewModel.remedyError.collectAsState()
+    val isVerifyingRemedy by viewModel.isVerifyingRemedy.collectAsState()
 
     // Switch-Tab Lifecycle Observer
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -176,6 +182,8 @@ fun CatAppNavigation(viewModel: ExamViewModel) {
                                 selectedGrade = selectedGrade,
                                 selectedAvatar = selectedAvatar,
                                 examHistory = examHistory,
+                                subjects = backendSubjects,
+                                isAdmin = isAdmin,
                                 onSelectGrade = { grade ->
                                     viewModel.selectGrade(grade)
                                 },
@@ -184,6 +192,9 @@ fun CatAppNavigation(viewModel: ExamViewModel) {
                                 },
                                 onGoToProfile = {
                                     viewModel.selectTab(MainTab.PROFILE)
+                                },
+                                onRefresh = {
+                                    viewModel.fetchSubjectsFromBackend(selectedGrade)
                                 }
                             )
                         }
@@ -207,12 +218,24 @@ fun CatAppNavigation(viewModel: ExamViewModel) {
                         MainTab.PROFILE -> {
                             ProfileScreen(
                                 studentName = studentName,
+                                nomorInduk = nomorInduk,
                                 selectedGrade = selectedGrade,
                                 selectedAvatar = selectedAvatar,
                                 themeOption = themeOption,
                                 examHistory = examHistory,
+                                isAdmin = isAdmin,
                                 onUpdateProfile = { name, grade, avatar ->
                                     viewModel.updateStudentProfile(name, grade, avatar)
+                                },
+                                onChangePassword = { currPass, newPass, onResult ->
+                                    viewModel.changePassword(currPass, newPass, onResult)
+                                },
+                                onUploadPhoto = { bitmap, onResult ->
+                                    // Convert bitmap to Base64 String and upload
+                                    val outputStream = java.io.ByteArrayOutputStream()
+                                    bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 85, outputStream)
+                                    val base64Str = "data:image/jpeg;base64," + android.util.Base64.encodeToString(outputStream.toByteArray(), android.util.Base64.NO_WRAP)
+                                    viewModel.uploadCustomAvatar(base64Str, onResult)
                                 },
                                 onSelectTheme = { option ->
                                     viewModel.setThemeOption(option)
@@ -243,6 +266,13 @@ fun CatAppNavigation(viewModel: ExamViewModel) {
                             proctoringLogs = proctoringLogs,
                             violationCount = violationCount,
                             isAdmin = isAdmin,
+                            isExamLocked = isExamLocked,
+                            lockReason = lockReason,
+                            remedyError = remedyError,
+                            isVerifyingRemedy = isVerifyingRemedy,
+                            onVerifyRemedyCode = { code ->
+                                viewModel.verifyAndResetRemedyCode(code)
+                            },
                             onFaceStatusChanged = { status, desc ->
                                 viewModel.updateFaceStatus(status, desc)
                             },

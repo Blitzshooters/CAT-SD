@@ -23,11 +23,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 import com.tanilink.cat.model.ExamSubject
+import com.tanilink.cat.model.ProctorPosition
 import com.tanilink.cat.model.Question
 import com.tanilink.cat.proctoring.CameraProctoringView
 import com.tanilink.cat.proctoring.FaceStatus
 import com.tanilink.cat.proctoring.ProctoringViolation
+import com.tanilink.cat.ui.components.CatImage
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -44,6 +52,11 @@ fun ExamScreen(
     proctoringLogs: List<ProctoringViolation>,
     violationCount: Int,
     isAdmin: Boolean = false,
+    isExamLocked: Boolean = false,
+    lockReason: String = "",
+    remedyError: String? = null,
+    isVerifyingRemedy: Boolean = false,
+    onVerifyRemedyCode: (String) -> Unit = {},
     onFaceStatusChanged: (FaceStatus, String) -> Unit,
     onSelectAnswer: (Int, Int) -> Unit,
     onToggleFlag: (Int) -> Unit,
@@ -56,6 +69,8 @@ fun ExamScreen(
     var showGridSheet by remember { mutableStateOf(false) }
     var showSubmitDialog by remember { mutableStateOf(false) }
     var showProctoringLogSheet by remember { mutableStateOf(false) }
+    var proctorPosition by remember { mutableStateOf(ProctorPosition.TOP_RIGHT) }
+    var dragOffset by remember { mutableStateOf(Offset.Zero) }
 
     val currentQuestion = questions.getOrNull(currentIndex)
     val selectedOptionIndex = userAnswers[currentIndex]
@@ -194,7 +209,7 @@ fun ExamScreen(
                                     color = if (violationCount > 0) Color(0xFFFEE2E2) else Color(0xFFDCFCE7)
                                 ) {
                                     Text(
-                                        text = "Pelanggaran: $violationCount/3",
+                                        text = "Pelanggaran: $violationCount/${subject.maxViolations}",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = if (violationCount > 0) Color(0xFFDC2626) else Color(0xFF166534),
@@ -443,6 +458,15 @@ fun ExamScreen(
                                     color = MaterialTheme.colorScheme.onSurface,
                                     lineHeight = 26.sp
                                 )
+
+                                if (!currentQuestion.imageUrl.isNullOrBlank()) {
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    CatImage(
+                                        imageUrl = currentQuestion.imageUrl,
+                                        contentDescription = "Gambar Soal",
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
                             }
                         }
 
@@ -498,13 +522,25 @@ fun ExamScreen(
 
                                     Spacer(modifier = Modifier.width(14.dp))
 
-                                    Text(
-                                        text = optionText,
-                                        fontSize = 15.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.weight(1f)
-                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = optionText,
+                                            fontSize = 15.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+
+                                        val optImg = currentQuestion.optionImages?.getOrNull(optIdx)
+                                        if (!optImg.isNullOrBlank()) {
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            CatImage(
+                                                imageUrl = optImg,
+                                                contentDescription = "Gambar Opsi ${labels.getOrElse(optIdx) { "" }}",
+                                                maxHeight = 110.dp,
+                                                modifier = Modifier.fillMaxWidth()
+                                            )
+                                        }
+                                    }
 
                                     if (isSelected) {
                                         Icon(
@@ -522,14 +558,77 @@ fun ExamScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                // AI Front Camera Preview Overlay Thumbnail (Floating Top-Right)
-                CameraProctoringView(
-                    statusColor = faceStatusColor,
-                    onFaceStatusChanged = onFaceStatusChanged,
+                // AI Front Camera Preview Overlay Thumbnail (Repositionable to 4 corners)
+                val cornerAlignment = when (proctorPosition) {
+                    ProctorPosition.TOP_RIGHT -> Alignment.TopEnd
+                    ProctorPosition.TOP_LEFT -> Alignment.TopStart
+                    ProctorPosition.BOTTOM_LEFT -> Alignment.BottomStart
+                    ProctorPosition.BOTTOM_RIGHT -> Alignment.BottomEnd
+                }
+
+                val cornerPadding = when (proctorPosition) {
+                    ProctorPosition.TOP_RIGHT -> PaddingValues(top = 16.dp, end = 16.dp)
+                    ProctorPosition.TOP_LEFT -> PaddingValues(top = 16.dp, start = 16.dp)
+                    ProctorPosition.BOTTOM_LEFT -> PaddingValues(bottom = 80.dp, start = 16.dp)
+                    ProctorPosition.BOTTOM_RIGHT -> PaddingValues(bottom = 80.dp, end = 16.dp)
+                }
+
+                Box(
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(16.dp)
-                )
+                        .align(cornerAlignment)
+                        .padding(cornerPadding)
+                        .offset { IntOffset(dragOffset.x.roundToInt(), dragOffset.y.roundToInt()) }
+                        .pointerInput(Unit) {
+                            detectDragGestures(
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    dragOffset += dragAmount
+                                },
+                                onDragEnd = {
+                                    val isLeft = dragOffset.x < -30
+                                    val isBottom = dragOffset.y > 40
+                                    proctorPosition = when {
+                                        !isLeft && !isBottom -> ProctorPosition.TOP_RIGHT
+                                        isLeft && !isBottom -> ProctorPosition.TOP_LEFT
+                                        isLeft && isBottom -> ProctorPosition.BOTTOM_LEFT
+                                        else -> ProctorPosition.BOTTOM_RIGHT
+                                    }
+                                    dragOffset = Offset.Zero
+                                }
+                            )
+                        }
+                ) {
+                    CameraProctoringView(
+                        statusColor = faceStatusColor,
+                        onFaceStatusChanged = onFaceStatusChanged
+                    )
+
+                    // Quick Corner Switch Button (Top-Right -> Top-Left -> Bottom-Left -> Bottom-Right)
+                    Surface(
+                        shape = CircleShape,
+                        color = Color(0xDD0F172A),
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(2.dp)
+                            .size(20.dp)
+                            .clickable {
+                                proctorPosition = when (proctorPosition) {
+                                    ProctorPosition.TOP_RIGHT -> ProctorPosition.TOP_LEFT
+                                    ProctorPosition.TOP_LEFT -> ProctorPosition.BOTTOM_LEFT
+                                    ProctorPosition.BOTTOM_LEFT -> ProctorPosition.BOTTOM_RIGHT
+                                    ProctorPosition.BOTTOM_RIGHT -> ProctorPosition.TOP_RIGHT
+                                }
+                                dragOffset = Offset.Zero
+                            }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.OpenWith,
+                            contentDescription = "Pindah Posisi Kamera",
+                            tint = Color.White,
+                            modifier = Modifier.padding(3.dp)
+                        )
+                    }
+                }
             }
         }
     }
@@ -740,6 +839,130 @@ fun ExamScreen(
                     Text("Lanjutkan Ujian")
                 }
             }
+        )
+    }
+
+    if (isExamLocked) {
+        var inputCode by remember { mutableStateOf("") }
+
+        AlertDialog(
+            onDismissRequest = { /* Non-dismissible */ },
+            icon = {
+                Surface(
+                    shape = CircleShape,
+                    color = Color(0xFFFEE2E2),
+                    modifier = Modifier.size(60.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = "Terkunci",
+                            tint = Color(0xFFDC2626),
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                }
+            },
+            title = {
+                Text(
+                    text = "Ujian Terkunci!",
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 20.sp,
+                    textAlign = TextAlign.Center,
+                    color = Color(0xFF991B1B)
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = lockReason.ifEmpty { "Pelanggaran AI Proctoring telah mencapai batas maksimal!" },
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center,
+                        fontWeight = FontWeight.Medium
+                    )
+
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFFFEF3C7),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Info,
+                                contentDescription = null,
+                                tint = Color(0xFFB45309),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Minta Kode Remedi kepada Guru / Pengawas untuk membuka kembali ujian dan mereset hitungan pelanggaran.",
+                                fontSize = 11.sp,
+                                color = Color(0xFF78350F),
+                                lineHeight = 16.sp
+                            )
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = inputCode,
+                        onValueChange = { inputCode = it.uppercase().trim() },
+                        label = { Text("Kode Pembuka / Remedi") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        isError = remedyError != null,
+                        supportingText = remedyError?.let {
+                            { Text(text = it, color = Color(0xFFDC2626), fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                        }
+                    )
+                }
+            },
+            confirmButton = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { onVerifyRemedyCode(inputCode) },
+                        enabled = !isVerifyingRemedy && inputCode.isNotBlank(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        if (isVerifyingRemedy) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+                        Text("Buka Kunci & Lanjutkan Ujian", fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+
+                    OutlinedButton(
+                        onClick = { onSubmitExam() },
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626)),
+                        border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFDC2626)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.DoneAll, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Selesai & Kumpulkan Ujian", fontWeight = FontWeight.Bold)
+                    }
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(20.dp)
         )
     }
 }

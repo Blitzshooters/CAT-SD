@@ -19,21 +19,25 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tanilink.cat.data.CatApiClient
 import com.tanilink.cat.data.SampleData
 import com.tanilink.cat.model.*
 
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
-    onLoginSuccess: (String, UserAvatar, String, Boolean) -> Unit // name, avatar, token, isAdmin
+    onLoginSuccess: (String, UserAvatar, String, Boolean, String) -> Unit // name, avatar, token, isAdmin, username
 ) {
     var selectedUsername by remember { mutableStateOf("zamzam") }
     var passwordInput by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     val accounts = listOf(
         Quadruple("zamzam", "Zam Zam", SampleData.avatars[0], true),  // Admin
@@ -242,16 +246,37 @@ fun LoginScreen(
                 // Login Button
                 Button(
                     onClick = {
-                        if (passwordInput == "unpkediri") {
-                            val acc = accounts.find { it.first == selectedUsername }
-                            if (acc != null) {
-                                val mockJwtToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.token_${acc.first}"
-                                onLoginSuccess(acc.second, acc.third, mockJwtToken, acc.fourth)
+                        if (passwordInput.isBlank()) {
+                            errorMessage = "Masukkan password terlebih dahulu."
+                            return@Button
+                        }
+                        val acc = accounts.find { it.first == selectedUsername } ?: return@Button
+                        isLoading = true
+                        errorMessage = ""
+                        coroutineScope.launch {
+                            val result = CatApiClient.login(selectedUsername, passwordInput)
+                            isLoading = false
+                            if (result != null) {
+                                // Login backend berhasil — gunakan data dari server
+                                onLoginSuccess(
+                                    result.first,        // name dari server
+                                    acc.third,           // avatar lokal sesuai username
+                                    result.second,       // JWT token asli dari server
+                                    result.third,        // isAdmin dari server
+                                    selectedUsername     // username untuk sync profil
+                                )
+                            } else {
+                                // Fallback: coba validasi lokal jika backend tidak tersedia
+                                if (passwordInput == "unpkediri") {
+                                    val mockToken = "offline_token_${acc.first}_${System.currentTimeMillis()}"
+                                    onLoginSuccess(acc.second, acc.third, mockToken, acc.fourth, selectedUsername)
+                                } else {
+                                    errorMessage = "Username atau password salah. (Backend tidak tersedia, gunakan password: unpkediri)"
+                                }
                             }
-                        } else {
-                            errorMessage = "Password yang Anda masukkan salah. Silakan periksa kembali."
                         }
                     },
+                    enabled = !isLoading,
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     elevation = ButtonDefaults.buttonElevation(
                         defaultElevation = 6.dp,
@@ -264,9 +289,19 @@ fun LoginScreen(
                         .height(54.dp)
                         .shadow(4.dp, RoundedCornerShape(16.dp))
                 ) {
-                    Icon(Icons.Default.Login, contentDescription = null, tint = Color.White)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Masuk Ujian (JWT Auth)", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Memverifikasi...", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)
+                    } else {
+                        Icon(Icons.Default.Login, contentDescription = null, tint = Color.White)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Masuk Ujian", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)
+                    }
                 }
             }
         }

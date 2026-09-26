@@ -14,6 +14,7 @@ return new class extends Migration {
             $table->string('password');
             $table->tinyInteger('grade')->default(5)->comment('Kelas 1-6');
             $table->string('avatar')->default('rabbit')->comment('rabbit|bear|robot|astronaut|champion');
+            $table->boolean('is_admin')->default(false);
             $table->timestamps();
         });
     }

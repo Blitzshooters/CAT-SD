@@ -60,6 +60,7 @@ class AuthController extends Controller
                 'username' => $user->username,
                 'grade'    => $user->grade,
                 'avatar'   => $user->avatar,
+                'is_admin' => (bool)$user->is_admin,
             ],
         ]);
     }
@@ -79,6 +80,7 @@ class AuthController extends Controller
                 'username' => $user->username,
                 'grade'    => $user->grade,
                 'avatar'   => $user->avatar,
+                'is_admin' => (bool)$user->is_admin,
             ],
         ]);
     }
@@ -121,5 +123,118 @@ class AuthController extends Controller
                 'message' => 'Token tidak bisa diperbarui',
             ], 401);
         }
+    }
+
+    /**
+     * Update user profile (name, avatar, grade)
+     */
+    public function updateProfile(Request $request): JsonResponse
+    {
+        $username = $request->input('username');
+        $user = User::where('username', $username)->first();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'User tidak ditemukan'], 404);
+        }
+
+        if ($request->filled('name')) {
+            $user->name = $request->input('name');
+        }
+        if ($request->filled('avatar')) {
+            $user->avatar = $request->input('avatar');
+        }
+        if ($request->filled('grade')) {
+            $user->grade = (int)$request->input('grade');
+        }
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Profil berhasil diperbarui',
+            'user' => [
+                'id'       => $user->id,
+                'name'     => $user->name,
+                'username' => $user->username,
+                'grade'    => $user->grade,
+                'avatar'   => $user->avatar,
+                'is_admin' => (bool)$user->is_admin,
+            ]
+        ]);
+    }
+
+    /**
+     * Change user password
+     */
+    public function changePassword(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'username'         => 'required|string',
+            'current_password' => 'required|string',
+            'new_password'     => 'required|string|min:4',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data tidak valid',
+                'errors'  => $validator->errors()
+            ], 422);
+        }
+
+        $user = User::where('username', $request->username)->first();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'User tidak ditemukan'], 404);
+        }
+
+        if (!Hash::check($request->current_password, $user->password)) {
+            return response()->json(['success' => false, 'message' => 'Password lama salah'], 400);
+        }
+
+        $user->password = Hash::make($request->new_password);
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Password berhasil diubah!'
+        ]);
+    }
+
+    /**
+     * Upload custom avatar picture
+     */
+    public function uploadAvatar(Request $request): JsonResponse
+    {
+        $username = $request->input('username');
+        $user = User::where('username', $username)->first();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'User tidak ditemukan'], 404);
+        }
+
+        if ($request->hasFile('avatar_file')) {
+            $file = $request->file('avatar_file');
+            $path = $file->store('avatars', 'public');
+            $url = asset('storage/' . $path);
+            $user->avatar = $url;
+            $user->save();
+
+            return response()->json([
+                'success'    => true,
+                'message'    => 'Foto profil berhasil diunggah',
+                'avatar_url' => $url
+            ]);
+        }
+
+        if ($request->filled('avatar_base64')) {
+            $base64Data = $request->input('avatar_base64');
+            $user->avatar = $base64Data;
+            $user->save();
+
+            return response()->json([
+                'success'    => true,
+                'message'    => 'Foto profil berhasil diperbarui',
+                'avatar_url' => $base64Data
+            ]);
+        }
+
+        return response()->json(['success' => false, 'message' => 'Tidak ada file gambar yang dikirim'], 400);
     }
 }

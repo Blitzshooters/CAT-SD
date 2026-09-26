@@ -34,10 +34,14 @@ fun HomeScreen(
     selectedGrade: Int,
     selectedAvatar: UserAvatar,
     examHistory: List<ExamResult>,
+    subjects: List<ExamSubject> = emptyList(),
+    isAdmin: Boolean = false,
     onSelectGrade: (Int) -> Unit,
     onStartExam: (ExamSubject) -> Unit,
-    onGoToProfile: () -> Unit
+    onGoToProfile: () -> Unit,
+    onRefresh: () -> Unit = {}
 ) {
+    val displaySubjects = if (subjects.isNotEmpty()) subjects else SampleData.subjects.map { it.copy(gradeLevel = selectedGrade) }
     var pendingSubjectForUnlock by remember { mutableStateOf<ExamSubject?>(null) }
     var unlockCodeInput by remember { mutableStateOf("") }
     var unlockErrorMsg by remember { mutableStateOf<String?>(null) }
@@ -81,6 +85,9 @@ fun HomeScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onRefresh) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Muat Ulang Soal", tint = MaterialTheme.colorScheme.primary)
+                    }
                     IconButton(onClick = onGoToProfile) {
                         Icon(Icons.Default.Settings, contentDescription = "Pengaturan", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -135,7 +142,7 @@ fun HomeScreen(
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = "20 Soal per mata pelajaran lengkap dengan pembahasan!",
+                                        text = "Ujian online terstandar lengkap dengan pembahasan soal!",
                                         color = Color.White.copy(alpha = 0.85f),
                                         fontSize = 13.sp
                                     )
@@ -199,6 +206,76 @@ fun HomeScreen(
                 }
             }
 
+            // Grade Selector Chips (Kelas 1 - Kelas 6) - Bebas untuk Admin, Khusus Admin jika siswa biasa
+            item {
+                Column {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = if (isAdmin) "Pilih Tingkat Kelas (Akses Admin):" else "Tingkat Kelas SD Aktif:",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (!isAdmin) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                Text(
+                                    text = "Ditentukan Guru/Admin",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items((1..6).toList()) { grade ->
+                            val isSelected = grade == selectedGrade
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    if (isAdmin || isSelected) {
+                                        onSelectGrade(grade)
+                                    }
+                                },
+                                enabled = isAdmin || isSelected,
+                                label = {
+                                    Text(
+                                        text = "Kelas $grade",
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                    )
+                                },
+                                leadingIcon = if (isSelected) {
+                                    {
+                                        Icon(
+                                            Icons.Default.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                } else null,
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
             // Section Title: Pilih Mata Pelajaran
             item {
                 Row(
@@ -213,7 +290,7 @@ fun HomeScreen(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "${SampleData.subjects.size} Mapel (20 Soal)",
+                        text = "${displaySubjects.size} Mapel Ujian",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -221,7 +298,7 @@ fun HomeScreen(
             }
 
             // Subject Cards List
-            items(SampleData.subjects) { subject ->
+            items(displaySubjects) { subject ->
                 val isCompleted = examHistory.any { it.subjectId == subject.id && it.grade == selectedGrade }
                 SubjectCard(
                     subject = subject,
@@ -326,12 +403,14 @@ fun HomeScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        if (unlockCodeInput.trim().equals("unpkediri", ignoreCase = true)) {
+                        val isCorrect = unlockCodeInput.trim().equals("unpkediri", ignoreCase = true) ||
+                                (pendingSubjectForUnlock?.remedyCode?.let { unlockCodeInput.trim().equals(it.trim(), ignoreCase = true) } == true)
+                        if (isCorrect) {
                             val subj = pendingSubjectForUnlock
                             pendingSubjectForUnlock = null
                             subj?.let { onStartExam(it) }
                         } else {
-                            unlockErrorMsg = "Kode khusus salah! Akses ditolak."
+                            unlockErrorMsg = "Kode remedi / khusus salah! Akses ditolak."
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4F46E5)),

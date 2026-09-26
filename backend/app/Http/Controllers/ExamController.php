@@ -6,6 +6,7 @@ use App\Models\ExamResult;
 use App\Models\ProctoringLog;
 use App\Models\Question;
 use App\Models\Subject;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -18,42 +19,56 @@ class ExamController extends Controller
      */
     public function subjects(Request $request): JsonResponse
     {
-        $grade = $request->query('grade', 5);
+        $grade = $request->query('grade');
 
-        $subjects = Subject::where('grade', $grade)->get()->map(function ($s) {
+        $query = Subject::withCount('questions');
+        if ($grade && $grade !== 'all') {
+            $query->where('grade', (int)$grade);
+        }
+
+        $subjects = $query->get()->map(function ($s) {
             return [
                 'id'               => $s->id,
                 'title'            => $s->title,
                 'grade'            => $s->grade,
                 'duration_minutes' => $s->duration_minutes,
-                'question_count'   => $s->questions()->count(),
+                'max_violations'   => $s->max_violations ?? 3,
+                'remedy_code'      => $s->remedy_code ?? ('REMEDI' . $s->grade),
+                'icon_name'        => $s->icon_name ?? 'school',
+                'description'      => $s->description ?? '',
+                'question_count'   => $s->questions_count,
             ];
         });
 
         return response()->json([
             'success'  => true,
-            'grade'    => (int) $grade,
+            'grade'    => $grade ? (int)$grade : null,
             'subjects' => $subjects,
         ]);
     }
 
     /**
-     * Get 20 questions for a subject (randomized)
+     * Get questions for a subject
      */
     public function questions(Request $request, int $subjectId): JsonResponse
     {
         $subject = Subject::findOrFail($subjectId);
 
+        $limit = $request->query('limit', 20);
+
         $questions = Question::where('subject_id', $subjectId)
             ->inRandomOrder()
-            ->limit(20)
+            ->limit((int)$limit)
             ->get()
             ->map(function ($q) {
                 return [
                     'id'                   => $q->id,
                     'prompt'               => $q->prompt,
-                    'options'              => json_decode($q->options),
+                    'question_image'       => $q->question_image,
+                    'options'              => is_array($q->options) ? $q->options : json_decode($q->options, true),
+                    'option_images'        => is_array($q->option_images) ? $q->option_images : json_decode($q->option_images, true),
                     'correct_answer_index' => $q->correct_answer_index,
+                    'explanation'          => $q->explanation ?? '',
                 ];
             });
 
@@ -62,10 +77,48 @@ class ExamController extends Controller
             'subject'  => [
                 'id'               => $subject->id,
                 'title'            => $subject->title,
+                'grade'            => $subject->grade,
                 'duration_minutes' => $subject->duration_minutes,
+                'max_violations'   => $subject->max_violations ?? 3,
+                'remedy_code'      => $subject->remedy_code ?? ('REMEDI' . $subject->grade),
             ],
             'questions' => $questions,
         ]);
+    }
+
+    /**
+     * Verify remedy code to reset proctoring violations
+     */
+    public function verifyRemedy(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'subject_id' => 'required|integer|exists:subjects,id',
+            'code'       => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Parameter tidak lengkap',
+                'errors'  => $validator->errors(),
+            ], 422);
+        }
+
+        $subject = Subject::findOrFail($request->subject_id);
+        $inputCode = strtoupper(trim($request->code));
+        $correctCode = strtoupper(trim($subject->remedy_code));
+
+        if ($inputCode === $correctCode) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Kode remedi valid! Pelanggaran telah direset.',
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Kode remedi salah! Silakan tanyakan kode kepada pengawas ujian.',
+        ], 403);
     }
 
     /**
@@ -82,7 +135,7 @@ class ExamController extends Controller
             'unanswered_count'    => 'required|integer',
             'total_questions'     => 'required|integer',
             'time_spent_seconds'  => 'required|integer',
-            'user_answers'        => 'required|array',
+            'user_answers'        => 'nullable|array',
             'proctoring_summary'  => 'nullable|array',
         ]);
 
@@ -93,10 +146,23 @@ class ExamController extends Controller
             ], 422);
         }
 
-        $user = JWTAuth::parseToken()->authenticate();
+        $userId = 1;
+        try {
+            if ($user = JWTAuth::parseToken()->authenticate()) {
+                $userId = $user->id;
+            }
+        } catch (\Exception $e) {
+            // Fallback for direct student submission
+            if ($request->filled('username')) {
+                $found = User::where('username', $request->input('username'))->first();
+                if ($found) {
+                    $userId = $found->id;
+                }
+            }
+        }
 
         $result = ExamResult::create([
-            'user_id'            => $user->id,
+            'user_id'            => $userId,
             'subject_id'         => $request->subject_id,
             'grade'              => $request->grade,
             'score'              => $request->score,
@@ -105,7 +171,7 @@ class ExamController extends Controller
             'unanswered_count'   => $request->unanswered_count,
             'total_questions'    => $request->total_questions,
             'time_spent_seconds' => $request->time_spent_seconds,
-            'user_answers'       => json_encode($request->user_answers),
+            'user_answers'       => json_encode($request->user_answers ?? []),
             'proctoring_summary' => json_encode($request->proctoring_summary ?? []),
         ]);
 
@@ -122,9 +188,21 @@ class ExamController extends Controller
      */
     public function history(Request $request): JsonResponse
     {
-        $user = JWTAuth::parseToken()->authenticate();
+        $userId = 1;
+        try {
+            if ($user = JWTAuth::parseToken()->authenticate()) {
+                $userId = $user->id;
+            }
+        } catch (\Exception $e) {
+            if ($request->filled('username')) {
+                $found = User::where('username', $request->input('username'))->first();
+                if ($found) {
+                    $userId = $found->id;
+                }
+            }
+        }
 
-        $history = ExamResult::where('user_id', $user->id)
+        $history = ExamResult::where('user_id', $userId)
             ->with('subject')
             ->orderBy('created_at', 'desc')
             ->get()

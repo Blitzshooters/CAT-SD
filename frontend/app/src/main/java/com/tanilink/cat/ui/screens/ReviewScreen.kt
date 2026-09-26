@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tanilink.cat.model.*
+import com.tanilink.cat.ui.components.CatImage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -147,6 +148,15 @@ fun ReviewScreen(
                             lineHeight = 24.sp
                         )
 
+                        if (!question.imageUrl.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            CatImage(
+                                imageUrl = question.imageUrl,
+                                contentDescription = "Gambar Soal",
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
                         Spacer(modifier = Modifier.height(14.dp))
 
                         val labels = listOf("A", "B", "C", "D")
@@ -189,13 +199,25 @@ fun ReviewScreen(
 
                                     Spacer(modifier = Modifier.width(10.dp))
 
-                                    Text(
-                                        text = optText,
-                                        fontSize = 14.sp,
-                                        color = Color(0xFF1E293B),
-                                        fontWeight = if (isThisCorrect || isThisUserChoice) FontWeight.Bold else FontWeight.Normal,
-                                        modifier = Modifier.weight(1f)
-                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = optText,
+                                            fontSize = 14.sp,
+                                            color = Color(0xFF1E293B),
+                                            fontWeight = if (isThisCorrect || isThisUserChoice) FontWeight.Bold else FontWeight.Normal
+                                        )
+
+                                        val optImg = question.optionImages?.getOrNull(optIdx)
+                                        if (!optImg.isNullOrBlank()) {
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            CatImage(
+                                                imageUrl = optImg,
+                                                contentDescription = "Gambar Opsi ${labels.getOrElse(optIdx) { "" }}",
+                                                maxHeight = 90.dp,
+                                                modifier = Modifier.fillMaxWidth()
+                                            )
+                                        }
+                                    }
 
                                     if (isThisCorrect) {
                                         Text(

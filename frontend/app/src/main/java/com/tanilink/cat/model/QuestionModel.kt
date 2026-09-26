@@ -9,7 +9,9 @@ data class Question(
     val correctAnswerIndex: Int,
     val explanation: String,
     val subjectId: String,
-    val gradeLevel: Int
+    val gradeLevel: Int,
+    val imageUrl: String? = null,
+    val optionImages: List<String?>? = null
 )
 
 data class ExamSubject(
@@ -20,8 +22,18 @@ data class ExamSubject(
     val secondaryColor: Color,
     val questionCount: Int,
     val durationMinutes: Int,
-    val description: String
+    val description: String,
+    val maxViolations: Int = 3,
+    val remedyCode: String = "REMEDI5",
+    val gradeLevel: Int = 5
 )
+
+enum class ProctorPosition {
+    TOP_RIGHT,   // Posisi awal (default)
+    TOP_LEFT,
+    BOTTOM_LEFT,
+    BOTTOM_RIGHT
+}
 
 data class ExamResult(
     val subjectId: String,
