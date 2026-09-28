@@ -30,7 +30,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
-    onLoginSuccess: (String, UserAvatar, String, Boolean, String) -> Unit // name, avatar, token, isAdmin, username
+    onLoginSuccess: (String, UserAvatar, String, Boolean, String, String, String) -> Unit // name, avatar, token, isAdmin, username, nomorInduk, serverAvatar
 ) {
     var selectedUsername by remember { mutableStateOf("zamzam") }
     var passwordInput by remember { mutableStateOf("") }
@@ -259,17 +259,19 @@ fun LoginScreen(
                             if (result != null) {
                                 // Login backend berhasil — gunakan data dari server
                                 onLoginSuccess(
-                                    result.first,        // name dari server
-                                    acc.third,           // avatar lokal sesuai username
-                                    result.second,       // JWT token asli dari server
-                                    result.third,        // isAdmin dari server
-                                    selectedUsername     // username untuk sync profil
+                                    result.name,
+                                    acc.third,
+                                    result.token,
+                                    result.isAdmin,
+                                    selectedUsername,
+                                    result.nomorInduk,
+                                    result.avatar
                                 )
                             } else {
                                 // Fallback: coba validasi lokal jika backend tidak tersedia
                                 if (passwordInput == "unpkediri") {
                                     val mockToken = "offline_token_${acc.first}_${System.currentTimeMillis()}"
-                                    onLoginSuccess(acc.second, acc.third, mockToken, acc.fourth, selectedUsername)
+                                    onLoginSuccess(acc.second, acc.third, mockToken, acc.fourth, selectedUsername, "", "")
                                 } else {
                                     errorMessage = "Username atau password salah. (Backend tidak tersedia, gunakan password: unpkediri)"
                                 }

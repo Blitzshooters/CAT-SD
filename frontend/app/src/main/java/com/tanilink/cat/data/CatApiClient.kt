@@ -18,11 +18,19 @@ import java.net.URL
 
 object CatApiClient {
 
+    data class LoginResult(
+        val name: String,
+        val token: String,
+        val isAdmin: Boolean,
+        val nomorInduk: String,
+        val avatar: String
+    )
+
     // 10.0.2.2 connects to host computer localhost from Android Emulator.
     // 127.0.0.1 for local tests or adb reverse tcp:8000 tcp:8000 (USB device)
     // 192.168.1.2 for direct Wi-Fi LAN connection
     private const val BASE_URL_LOCAL = "http://127.0.0.1:8000/api"
-    private const val BASE_URL_LAN = "http://192.168.1.2:8000/api"
+    private const val BASE_URL_LAN = "http://192.168.1.4:8000/api"
     private const val BASE_URL_EMULATOR = "http://10.0.2.2:8000/api"
 
     var currentBaseUrl = BASE_URL_LOCAL
@@ -31,9 +39,9 @@ object CatApiClient {
         listOf(currentBaseUrl, BASE_URL_LOCAL, BASE_URL_LAN, BASE_URL_EMULATOR).distinct()
 
     /**
-     * Login ke backend — returns Triple(name, jwtToken, isAdmin) atau null jika gagal
+     * Login ke backend — returns LoginResult atau null jika gagal
      */
-    suspend fun login(username: String, password: String): Triple<String, String, Boolean>? = withContext(Dispatchers.IO) {
+    suspend fun login(username: String, password: String): LoginResult? = withContext(Dispatchers.IO) {
         val urlsToTry = getCandidateUrls()
         for (baseUrl in urlsToTry) {
             try {
@@ -61,9 +69,10 @@ object CatApiClient {
                         val token = json.getString("token")
                         val userObj = json.getJSONObject("user")
                         val name = userObj.optString("name", username)
-                        // isAdmin: server tidak mengirim is_admin, cek dari username list admin
                         val isAdmin = userObj.optBoolean("is_admin", false)
-                        return@withContext Triple(name, token, isAdmin)
+                        val nomorInduk = userObj.optString("nomor_induk", "")
+                        val avatar = userObj.optString("avatar", "")
+                        return@withContext LoginResult(name, token, isAdmin, nomorInduk, avatar)
                     }
                 }
             } catch (_: Exception) {
@@ -269,7 +278,8 @@ object CatApiClient {
     suspend fun uploadAvatarBase64(
         username: String,
         base64Data: String
-    ): String? = withContext(Dispatchers.IO) {
+    ): Pair<String?, String> = withContext(Dispatchers.IO) {
+        var lastError = "Tidak dapat terhubung ke server backend."
         val urlsToTry = getCandidateUrls()
         for (baseUrl in urlsToTry) {
             try {
@@ -277,7 +287,7 @@ object CatApiClient {
                 val conn = (url.openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
                     connectTimeout = 8000
-                    readTimeout = 10000
+                    readTimeout = 15000
                     doOutput = true
                     setRequestProperty("Content-Type", "application/json")
                     setRequestProperty("Accept", "application/json")
@@ -287,19 +297,25 @@ object CatApiClient {
                     put("avatar_base64", base64Data)
                 }
                 OutputStreamWriter(conn.outputStream).use { it.write(body.toString()) }
-                if (conn.responseCode in 200..299) {
-                    currentBaseUrl = baseUrl
-                    val responseText = conn.inputStream.bufferedReader().use { it.readText() }
+                val responseText = (if (conn.responseCode in 200..299) conn.inputStream else conn.errorStream)
+                    ?.bufferedReader()?.use { it.readText() } ?: ""
+                if (responseText.isNotBlank()) {
                     val json = JSONObject(responseText)
-                    if (json.optBoolean("success")) {
-                        return@withContext json.optString("avatar_url", base64Data)
+                    val message = json.optString("message", "")
+                    if (conn.responseCode in 200..299 && json.optBoolean("success")) {
+                        currentBaseUrl = baseUrl
+                        val avatarUrl = json.optString("avatar_url", "")
+                        return@withContext Pair(avatarUrl.ifBlank { null }, "")
+                    }
+                    if (message.isNotBlank()) {
+                        lastError = message
                     }
                 }
             } catch (_: Exception) {
                 // Try next URL
             }
         }
-        null
+        Pair(null, lastError)
     }
 
     suspend fun verifyRemedyCode(subjectId: String, code: String): Boolean = withContext(Dispatchers.IO) {

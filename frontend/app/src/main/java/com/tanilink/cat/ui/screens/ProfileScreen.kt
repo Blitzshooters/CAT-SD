@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tanilink.cat.data.CatApiClient
 import com.tanilink.cat.data.SampleData
 import com.tanilink.cat.model.AppThemeOption
 import com.tanilink.cat.model.ExamResult
@@ -36,10 +37,11 @@ fun ProfileScreen(
     studentName: String,
     selectedGrade: Int,
     selectedAvatar: UserAvatar,
+    customAvatarUrl: String = "",
     themeOption: AppThemeOption,
     examHistory: List<ExamResult>,
     isAdmin: Boolean = false,
-    nomorInduk: String = "202401001",
+    nomorInduk: String = "",
     onUpdateProfile: (String, Int, UserAvatar) -> Unit,
     onChangePassword: (String, String, (Boolean, String) -> Unit) -> Unit = { _, _, _ -> },
     onUploadPhoto: (android.graphics.Bitmap, (Boolean, String) -> Unit) -> Unit = { _, _ -> },
@@ -60,6 +62,15 @@ fun ProfileScreen(
     var isUploadingPhoto by remember { mutableStateOf(false) }
     var photoUploadMsg by remember { mutableStateOf<String?>(null) }
     var isSavedShow by remember { mutableStateOf(false) }
+
+    LaunchedEffect(customAvatarUrl) {
+        if (customAvatarUrl.isNotBlank()) {
+            val bitmap = CatApiClient.loadBitmap(customAvatarUrl)
+            if (bitmap != null) {
+                customPhotoBitmap = bitmap
+            }
+        }
+    }
 
     // Photo Picker Launcher
     val photoPickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -232,14 +243,14 @@ fun ProfileScreen(
 
                         // Field Identitas Akun: Nomor Induk (NISN / NIK)
                         OutlinedTextField(
-                            value = nomorInduk,
+                            value = nomorInduk.ifBlank { "—" },
                             onValueChange = { },
                             readOnly = true,
                             enabled = false,
                             label = { Text("Nomor Induk Siswa (NISN / NIK)") },
                             leadingIcon = { Icon(Icons.Default.Badge, contentDescription = null) },
                             trailingIcon = {
-                                Surface(
+                                if (nomorInduk.isNotBlank()) Surface(
                                     shape = RoundedCornerShape(8.dp),
                                     color = MaterialTheme.colorScheme.secondaryContainer
                                 ) {

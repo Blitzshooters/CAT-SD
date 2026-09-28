@@ -69,8 +69,8 @@ class MainActivity : ComponentActivity() {
                 ) {
                     if (!isLoggedIn) {
                         LoginScreen(
-                            onLoginSuccess = { name, avatar, token, isAdminUser, username ->
-                                viewModel.login(name, avatar, token, isAdminUser, username)
+                            onLoginSuccess = { name, avatar, token, isAdminUser, username, nomorInduk, serverAvatar ->
+                                viewModel.login(name, avatar, token, isAdminUser, username, nomorInduk, serverAvatar)
                             }
                         )
                     } else {
@@ -91,6 +91,7 @@ fun CatAppNavigation(viewModel: ExamViewModel) {
     val nomorInduk by viewModel.nomorInduk.collectAsState()
     val selectedGrade by viewModel.selectedGrade.collectAsState()
     val selectedAvatar by viewModel.selectedAvatar.collectAsState()
+    val customAvatarUrl by viewModel.customAvatarUrl.collectAsState()
     val themeOption by viewModel.themeOption.collectAsState()
     val currentSubject by viewModel.currentSubject.collectAsState()
     val questions by viewModel.questions.collectAsState()
@@ -221,6 +222,7 @@ fun CatAppNavigation(viewModel: ExamViewModel) {
                                 nomorInduk = nomorInduk,
                                 selectedGrade = selectedGrade,
                                 selectedAvatar = selectedAvatar,
+                                customAvatarUrl = customAvatarUrl,
                                 themeOption = themeOption,
                                 examHistory = examHistory,
                                 isAdmin = isAdmin,

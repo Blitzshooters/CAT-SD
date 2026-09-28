@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.tanilink.cat.data.CatApiClient
 import com.tanilink.cat.data.ExamDatabaseHelper
 import com.tanilink.cat.data.SampleData
+import androidx.compose.ui.graphics.Color
 import com.tanilink.cat.model.*
 import com.tanilink.cat.proctoring.FaceStatus
 import com.tanilink.cat.proctoring.ProctoringViolation
@@ -28,7 +29,7 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
     private val _studentName = MutableStateFlow("Zam Zam")
     val studentName: StateFlow<String> = _studentName.asStateFlow()
 
-    private val _nomorInduk = MutableStateFlow("202401001")
+    private val _nomorInduk = MutableStateFlow("")
     val nomorInduk: StateFlow<String> = _nomorInduk.asStateFlow()
 
     private val _selectedGrade = MutableStateFlow(5)
@@ -36,6 +37,9 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _selectedAvatar = MutableStateFlow<UserAvatar>(SampleData.avatars[0])
     val selectedAvatar: StateFlow<UserAvatar> = _selectedAvatar.asStateFlow()
+
+    private val _customAvatarUrl = MutableStateFlow("")
+    val customAvatarUrl: StateFlow<String> = _customAvatarUrl.asStateFlow()
 
     private val _jwtToken = MutableStateFlow("")
     val jwtToken: StateFlow<String> = _jwtToken.asStateFlow()
@@ -121,13 +125,21 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
             val savedToken = prefs.getString("jwt_token", "") ?: ""
             val savedGrade = prefs.getInt("selected_grade", 5)
             val savedAvatarId = prefs.getString("avatar_id", "av1") ?: "av1"
-            val foundAvatar = SampleData.avatars.find { it.id == savedAvatarId } ?: SampleData.avatars[0]
+            val savedNomorInduk = prefs.getString("nomor_induk", "") ?: ""
+            val savedCustomAvatarUrl = prefs.getString("custom_avatar_url", "") ?: ""
+            val restoredAvatar = if (savedAvatarId == "custom" && savedCustomAvatarUrl.isNotBlank()) {
+                customAvatarUser()
+            } else {
+                SampleData.avatars.find { it.id == savedAvatarId } ?: SampleData.avatars[0]
+            }
 
             _studentName.value = savedName
+            _nomorInduk.value = savedNomorInduk
             _isAdmin.value = savedIsAdmin
             _jwtToken.value = savedToken
             _selectedGrade.value = savedGrade
-            _selectedAvatar.value = foundAvatar
+            _selectedAvatar.value = restoredAvatar
+            _customAvatarUrl.value = if (savedAvatarId == "custom") savedCustomAvatarUrl else ""
             _isLoggedIn.value = true
         }
         loadHistoryFromDatabase()
@@ -156,9 +168,21 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun login(name: String, avatar: UserAvatar, token: String, isAdminUser: Boolean = false, username: String = "") {
+    fun login(
+        name: String,
+        avatar: UserAvatar,
+        token: String,
+        isAdminUser: Boolean = false,
+        username: String = "",
+        nomorInduk: String = "",
+        serverAvatar: String = ""
+    ) {
+        val (resolvedAvatar, customUrl) = resolveAvatar(serverAvatar, avatar)
+
         _studentName.value = name
-        _selectedAvatar.value = avatar
+        _nomorInduk.value = nomorInduk
+        _selectedAvatar.value = resolvedAvatar
+        _customAvatarUrl.value = customUrl
         _jwtToken.value = token
         _isAdmin.value = isAdminUser
         _isLoggedIn.value = true
@@ -167,9 +191,11 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
         prefs.edit()
             .putBoolean("is_logged_in", true)
             .putString("student_name", name)
+            .putString("nomor_induk", nomorInduk)
             .putBoolean("is_admin", isAdminUser)
             .putString("jwt_token", token)
-            .putString("avatar_id", avatar.id)
+            .putString("avatar_id", resolvedAvatar.id)
+            .putString("custom_avatar_url", customUrl)
             .putString("username", username)
             .apply()
 
@@ -180,10 +206,14 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
         _isLoggedIn.value = false
         _isAdmin.value = false
         _jwtToken.value = ""
+        _nomorInduk.value = ""
+        _customAvatarUrl.value = ""
 
         prefs.edit()
             .putBoolean("is_logged_in", false)
             .remove("jwt_token")
+            .remove("nomor_induk")
+            .remove("custom_avatar_url")
             .apply()
     }
 
@@ -220,10 +250,15 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
         // Sync profil ke backend MySQL
         if (username.isNotEmpty()) {
             viewModelScope.launch {
+                val avatarValue = if (avatar.id == "custom" && _customAvatarUrl.value.isNotBlank()) {
+                    _customAvatarUrl.value
+                } else {
+                    avatar.id
+                }
                 CatApiClient.updateProfile(
                     username = username,
                     name = name,
-                    avatarId = avatar.id,
+                    avatarId = avatarValue,
                     grade = grade
                 )
             }
@@ -249,16 +284,49 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         viewModelScope.launch {
-            val uploadedUrl = CatApiClient.uploadAvatarBase64(username, base64Data)
+            val (uploadedUrl, errorMessage) = CatApiClient.uploadAvatarBase64(username, base64Data)
             if (uploadedUrl != null) {
-                val customAv = UserAvatar(id = "custom", name = "Foto Profil Saya", iconName = "Person", backgroundColor = androidx.compose.ui.graphics.Color(0xFF818CF8))
-                _selectedAvatar.value = customAv
-                prefs.edit().putString("avatar_id", "custom").apply()
+                _selectedAvatar.value = customAvatarUser()
+                _customAvatarUrl.value = uploadedUrl
+                prefs.edit()
+                    .putString("avatar_id", "custom")
+                    .putString("custom_avatar_url", uploadedUrl)
+                    .apply()
                 onResult(true, "Foto profil berhasil diunggah!")
             } else {
-                onResult(false, "Gagal mengunggah foto profil ke server.")
+                onResult(false, errorMessage.ifBlank { "Gagal mengunggah foto profil ke server." })
             }
         }
+    }
+
+    private fun customAvatarUser() = UserAvatar(
+        id = "custom",
+        name = "Foto Profil Saya",
+        iconName = "Person",
+        backgroundColor = Color(0xFF818CF8)
+    )
+
+    private fun resolveAvatar(serverAvatar: String, fallbackAvatar: UserAvatar): Pair<UserAvatar, String> {
+        if (serverAvatar.isBlank()) {
+            return Pair(fallbackAvatar, "")
+        }
+        if (serverAvatar.startsWith("http") ||
+            serverAvatar.startsWith("data:") ||
+            serverAvatar.startsWith("/storage")
+        ) {
+            return Pair(customAvatarUser(), serverAvatar)
+        }
+
+        val presetMapping = mapOf(
+            "rabbit" to "av1",
+            "bear" to "av2",
+            "robot" to "av3",
+            "astronaut" to "av4",
+            "champion" to "av5"
+        )
+        val avatarId = presetMapping[serverAvatar] ?: serverAvatar
+        val presetAvatar = SampleData.avatars.find { it.id == avatarId } ?: fallbackAvatar
+        return Pair(presetAvatar, "")
     }
 
     fun setThemeOption(option: AppThemeOption) {

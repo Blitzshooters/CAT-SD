@@ -6,7 +6,9 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Tymon\JWTAuth\Exceptions\JWTException;
 
@@ -55,12 +57,13 @@ class AuthController extends Controller
             'token_type' => 'bearer',
             'expires_in' => config('jwt.ttl') * 60,
             'user'    => [
-                'id'       => $user->id,
-                'name'     => $user->name,
-                'username' => $user->username,
-                'grade'    => $user->grade,
-                'avatar'   => $user->avatar,
-                'is_admin' => (bool)$user->is_admin,
+                'id'          => $user->id,
+                'name'        => $user->name,
+                'username'    => $user->username,
+                'nomor_induk' => $user->nomor_induk,
+                'grade'       => $user->grade,
+                'avatar'      => $user->avatar,
+                'is_admin'    => (bool)$user->is_admin,
             ],
         ]);
     }
@@ -75,12 +78,13 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'user'    => [
-                'id'       => $user->id,
-                'name'     => $user->name,
-                'username' => $user->username,
-                'grade'    => $user->grade,
-                'avatar'   => $user->avatar,
-                'is_admin' => (bool)$user->is_admin,
+                'id'          => $user->id,
+                'name'        => $user->name,
+                'username'    => $user->username,
+                'nomor_induk' => $user->nomor_induk,
+                'grade'       => $user->grade,
+                'avatar'      => $user->avatar,
+                'is_admin'    => (bool)$user->is_admin,
             ],
         ]);
     }
@@ -151,12 +155,13 @@ class AuthController extends Controller
             'success' => true,
             'message' => 'Profil berhasil diperbarui',
             'user' => [
-                'id'       => $user->id,
-                'name'     => $user->name,
-                'username' => $user->username,
-                'grade'    => $user->grade,
-                'avatar'   => $user->avatar,
-                'is_admin' => (bool)$user->is_admin,
+                'id'          => $user->id,
+                'name'        => $user->name,
+                'username'    => $user->username,
+                'nomor_induk' => $user->nomor_induk,
+                'grade'       => $user->grade,
+                'avatar'      => $user->avatar,
+                'is_admin'    => (bool)$user->is_admin,
             ]
         ]);
     }
@@ -224,14 +229,41 @@ class AuthController extends Controller
         }
 
         if ($request->filled('avatar_base64')) {
-            $base64Data = $request->input('avatar_base64');
-            $user->avatar = $base64Data;
+            $base64Input = $request->input('avatar_base64');
+            $extension = 'jpg';
+            $rawBase64 = $base64Input;
+
+            if (preg_match('/^data:image\/(\w+);base64,/', $base64Input, $matches)) {
+                $extension = strtolower($matches[1]) === 'jpeg' ? 'jpg' : strtolower($matches[1]);
+                $rawBase64 = substr($base64Input, strpos($base64Input, ',') + 1);
+            }
+
+            $imageData = base64_decode($rawBase64, true);
+            if ($imageData === false || strlen($imageData) === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Format gambar tidak valid',
+                ], 422);
+            }
+
+            if ($user->avatar && str_contains($user->avatar, '/storage/avatars/')) {
+                $oldPath = Str::after($user->avatar, '/storage/');
+                Storage::disk('public')->delete($oldPath);
+            }
+
+            $filename = 'avatars/' . $user->username . '_' . time() . '.' . $extension;
+            Storage::disk('public')->put($filename, $imageData);
+
+            $storedPath = '/storage/' . $filename;
+            $user->avatar = $storedPath;
             $user->save();
+
+            $avatarUrl = rtrim($request->getSchemeAndHttpHost(), '/') . $storedPath;
 
             return response()->json([
                 'success'    => true,
                 'message'    => 'Foto profil berhasil diperbarui',
-                'avatar_url' => $base64Data
+                'avatar_url' => $avatarUrl,
             ]);
         }
 
