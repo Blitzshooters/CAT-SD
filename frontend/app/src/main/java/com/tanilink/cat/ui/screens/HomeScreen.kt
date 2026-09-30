@@ -15,13 +15,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tanilink.cat.data.CatApiClient
 import com.tanilink.cat.data.SampleData
 import com.tanilink.cat.model.ExamResult
 import com.tanilink.cat.model.ExamSubject
@@ -33,6 +37,7 @@ fun HomeScreen(
     studentName: String,
     selectedGrade: Int,
     selectedAvatar: UserAvatar,
+    customAvatarUrl: String = "",
     examHistory: List<ExamResult>,
     subjects: List<ExamSubject> = emptyList(),
     isAdmin: Boolean = false,
@@ -45,6 +50,18 @@ fun HomeScreen(
     var pendingSubjectForUnlock by remember { mutableStateOf<ExamSubject?>(null) }
     var unlockCodeInput by remember { mutableStateOf("") }
     var unlockErrorMsg by remember { mutableStateOf<String?>(null) }
+    var customPhotoBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+
+    LaunchedEffect(customAvatarUrl) {
+        if (customAvatarUrl.isNotBlank()) {
+            val bitmap = CatApiClient.loadBitmap(customAvatarUrl)
+            if (bitmap != null) {
+                customPhotoBitmap = bitmap
+            }
+        } else {
+            customPhotoBitmap = null
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -57,15 +74,28 @@ fun HomeScreen(
                         Surface(
                             shape = CircleShape,
                             color = selectedAvatar.backgroundColor,
-                            modifier = Modifier.size(42.dp)
+                            modifier = Modifier
+                                .size(44.dp)
+                                .shadow(2.dp, CircleShape)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = getAvatarIcon(selectedAvatar.iconName),
-                                    contentDescription = null,
-                                    tint = Color(0xFF4F46E5),
-                                    modifier = Modifier.size(24.dp)
-                                )
+                                if (customPhotoBitmap != null) {
+                                    androidx.compose.foundation.Image(
+                                        bitmap = customPhotoBitmap!!.asImageBitmap(),
+                                        contentDescription = "Foto Profil",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(CircleShape)
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = getAvatarIcon(selectedAvatar.iconName),
+                                        contentDescription = null,
+                                        tint = Color(0xFF4F46E5),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
                             }
                         }
                         Spacer(modifier = Modifier.width(12.dp))

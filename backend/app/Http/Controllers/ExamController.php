@@ -175,12 +175,67 @@ class ExamController extends Controller
             'proctoring_summary' => json_encode($request->proctoring_summary ?? []),
         ]);
 
+        // Auto-record proctoring violations into proctoring_logs linked to exam_result_id
+        if ($request->filled('proctoring_summary') && is_array($request->proctoring_summary)) {
+            foreach ($request->proctoring_summary as $item) {
+                if (is_array($item)) {
+                    ProctoringLog::create([
+                        'user_id'        => $userId,
+                        'exam_result_id' => $result->id,
+                        'violation_type' => $item['type'] ?? 'SNAPSHOT_CAPTURED',
+                        'description'    => $item['description'] ?? ($item['desc'] ?? 'Pelanggaran proctoring'),
+                        'question_index' => $item['question_index'] ?? null,
+                        'timestamp_ms'   => $item['timestamp_ms'] ?? (int)(microtime(true) * 1000),
+                    ]);
+                }
+            }
+        }
+
         return response()->json([
             'success'   => true,
             'message'   => 'Hasil ujian berhasil disimpan',
             'result_id' => $result->id,
             'score'     => $result->score,
         ], 201);
+    }
+
+    /**
+     * Verify class / grade change verification code
+     */
+    public function verifyClassCode(Request $request): JsonResponse
+    {
+        $code = trim($request->input('code', ''));
+        $validCode = \App\Models\AppSetting::get('class_change_code', 'unpkediri');
+
+        if (empty($code)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Kode penggantian kelas harus diisi',
+            ], 422);
+        }
+
+        if (strcasecmp($code, $validCode) === 0) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Kode verifikasi kelas valid!',
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Kode khusus salah! Perubahan kelas dibatalkan.',
+        ], 403);
+    }
+
+    /**
+     * Get class change code (for client sync if needed)
+     */
+    public function getClassChangeCode(): JsonResponse
+    {
+        return response()->json([
+            'success'           => true,
+            'class_change_code' => \App\Models\AppSetting::get('class_change_code', 'unpkediri'),
+        ]);
     }
 
     /**
@@ -209,6 +264,7 @@ class ExamController extends Controller
             ->map(function ($r) {
                 return [
                     'id'                 => $r->id,
+                    'subject_id'         => (string) $r->subject_id,
                     'subject_title'      => $r->subject->title ?? 'Unknown',
                     'grade'              => $r->grade,
                     'score'              => $r->score,

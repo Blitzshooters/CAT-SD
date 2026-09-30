@@ -40,8 +40,11 @@
                     <i class="fa-solid fa-user-graduate text-cyan-300"></i>
                     <span>{{ $stats['total_students'] }} Siswa</span>
                 </div>
-                <a href="#monitoring" class="bg-amber-400 hover:bg-amber-500 text-slate-900 font-semibold px-3 py-1.5 rounded-lg transition shadow-sm flex items-center gap-1.5">
-                    <i class="fa-solid fa-shield-halved"></i> Monitor AI
+                <a href="{{ route('admin.dashboard', ['tab' => 'users']) }}#settings-class-code" class="bg-indigo-900/90 hover:bg-indigo-950 px-3 py-1.5 rounded-lg border border-amber-400/40 text-amber-300 transition shadow-sm flex items-center gap-1.5 font-bold" title="Kode verifikasi bagi siswa saat ingin berpindah kelas">
+                    <i class="fa-solid fa-key text-amber-400"></i> Kode Kelas: <code class="bg-amber-400/20 px-1 rounded text-white">{{ $classChangeCode }}</code>
+                </a>
+                <a href="{{ route('admin.dashboard', ['tab' => 'monitoring']) }}" class="bg-amber-400 hover:bg-amber-500 text-slate-900 font-bold px-3 py-1.5 rounded-lg transition shadow-sm flex items-center gap-1.5">
+                    <i class="fa-solid fa-shield-halved"></i> Monitor AI ({{ $stats['total_violations'] }})
                 </a>
             </div>
         </div>
@@ -61,7 +64,7 @@
             </div>
         @endif
 
-        @if($errors->any())
+        @if(isset($errors) && $errors->any())
             <div class="bg-rose-50 border border-rose-200 text-rose-800 px-4 py-3 rounded-xl shadow-sm">
                 <div class="flex items-center gap-2 font-semibold mb-1">
                     <i class="fa-solid fa-triangle-exclamation text-rose-600"></i>
@@ -75,15 +78,20 @@
             </div>
         @endif
 
-        <!-- Top Navigation Tabs (Ujian & Bank Soal vs Manajemen Akun) -->
-        <div class="flex items-center gap-3 border-b border-slate-200 pb-3">
+        <!-- Top Navigation Tabs (Ujian & Bank Soal, Monitoring AI Proctoring, Manajemen Akun & Password) -->
+        <div class="flex items-center gap-2 sm:gap-3 border-b border-slate-200 pb-3 flex-wrap">
             <a href="{{ route('admin.dashboard', ['tab' => 'exams', 'grade' => $grade]) }}"
                class="px-5 py-2.5 rounded-2xl text-xs font-extrabold transition flex items-center gap-2 {{ ($tab ?? 'exams') === 'exams' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200' }}">
                 <i class="fa-solid fa-graduation-cap text-sm"></i> Bank Soal & Ujian
             </a>
+            <a href="{{ route('admin.dashboard', ['tab' => 'monitoring']) }}"
+               class="px-5 py-2.5 rounded-2xl text-xs font-extrabold transition flex items-center gap-2 {{ ($tab ?? 'exams') === 'monitoring' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200' }}">
+                <i class="fa-solid fa-shield-halved text-sm {{ ($tab ?? 'exams') === 'monitoring' ? 'text-white' : 'text-amber-500' }}"></i> Monitoring AI Proctoring & Hasil Ujian
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ ($tab ?? 'exams') === 'monitoring' ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-700' }}">{{ $stats['total_violations'] }} Log</span>
+            </a>
             <a href="{{ route('admin.dashboard', ['tab' => 'users']) }}"
                class="px-5 py-2.5 rounded-2xl text-xs font-extrabold transition flex items-center gap-2 {{ ($tab ?? 'exams') === 'users' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200' }}">
-                <i class="fa-solid fa-users-gear text-sm"></i> Manajemen Akun Siswa & Guru ({{ $users->count() }})
+                <i class="fa-solid fa-users-gear text-sm"></i> Manajemen Akun & Password ({{ $users->count() }})
             </a>
         </div>
 
@@ -341,6 +349,7 @@
                                     <th class="py-2 px-3">Skor</th>
                                     <th class="py-2 px-3">Benar/Salah</th>
                                     <th class="py-2 px-3">Waktu</th>
+                                    <th class="py-2 px-3 text-center">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
@@ -351,6 +360,16 @@
                                         <td class="py-2 px-3 font-black text-indigo-600 text-sm">{{ $res->score }}</td>
                                         <td class="py-2 px-3 text-slate-600">{{ $res->correct_count }}B / {{ $res->wrong_count }}S</td>
                                         <td class="py-2 px-3 text-slate-400">{{ $res->created_at->diffForHumans() }}</td>
+                                        <td class="py-2 px-3 text-center">
+                                            <form action="{{ route('admin.exam-results.delete', $res->id) }}" method="POST" onsubmit="return confirm('Hapus riwayat ujian {{ $res->subject->title ?? 'Ujian' }} siswa {{ $res->user->name ?? 'Siswa' }}? Siswa dapat mengambil ulang ujian ini.');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" title="Hapus Ujian (Reset agar siswa dapat mengerjakan lagi)"
+                                                        class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg font-bold text-[11px] transition inline-flex items-center gap-1 border border-rose-200">
+                                                    <i class="fa-solid fa-trash text-[10px]"></i> Hapus
+                                                </button>
+                                            </form>
+                                        </td>
                                     </tr>
                                 @empty
                                     <tr>
@@ -401,16 +420,331 @@
 
             </div>
         </section>
+        @elseif(($tab ?? 'exams') === 'monitoring')
+        <!-- ================= TAB: MONITORING AI PROCTORING & HASIL UJIAN ================= -->
+        <section class="space-y-6">
+
+            <!-- Monitoring Top Banner & Actions -->
+            <div class="bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white p-6 rounded-3xl shadow-lg border border-indigo-700/50 flex flex-wrap items-center justify-between gap-4">
+                <div class="space-y-1">
+                    <div class="inline-flex items-center gap-2 bg-indigo-500/30 px-3 py-1 rounded-full text-xs font-bold text-amber-300 border border-amber-300/30">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        AI Proctoring Live Monitor
+                    </div>
+                    <h2 class="text-xl font-black tracking-tight text-white flex items-center gap-2.5">
+                        <i class="fa-solid fa-shield-cat text-amber-400"></i>
+                        Pusat Pantauan AI Proctoring & Hasil Ujian Siswa
+                    </h2>
+                    <p class="text-xs text-indigo-200">Pantau aktivitas ujian siswa, pelanggaran proctoring, snapshot kamera, dan kelola atau hapus ujian yang telah diambil.</p>
+                </div>
+
+                <div class="flex items-center gap-2.5 flex-wrap">
+                    <!-- Refresh Button -->
+                    <button onclick="window.location.reload()" class="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition border border-white/20 flex items-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-rotate text-xs"></i> Segarkan Data
+                    </button>
+
+                    <!-- Auto Refresh Toggle -->
+                    <button id="btnAutoRefresh" onclick="toggleAutoRefresh()" class="px-4 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold text-xs transition border border-emerald-400/30 flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400" id="dotAutoRefresh"></span>
+                        <span id="textAutoRefresh">Auto-Refresh: Aktif (10s)</span>
+                    </button>
+
+                    <!-- Clear Logs Button -->
+                    <form action="{{ route('admin.proctoring.clear') }}" method="POST" onsubmit="return confirm('Yakin ingin membersihkan semua catatan riwayat pelanggaran AI proctoring?');">
+                        @csrf
+                        <button type="submit" class="px-4 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-bold text-xs transition border border-rose-400/30 flex items-center gap-2">
+                            <i class="fa-solid fa-trash-can text-xs"></i> Bersihkan Log
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Stats Overview Cards -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3.5">
+                    <div class="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 text-xl font-bold">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-slate-400">Total Ujian Dikerjakan</p>
+                        <p class="text-xl font-black text-slate-900">{{ $stats['total_results'] }}</p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3.5">
+                    <div class="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 text-xl font-bold">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-slate-400">Pelanggaran Terdeteksi</p>
+                        <p class="text-xl font-black text-rose-600">{{ $stats['total_violations'] }}</p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3.5">
+                    <div class="w-12 h-12 rounded-2xl bg-cyan-50 border border-cyan-100 flex items-center justify-center text-cyan-600 text-xl font-bold">
+                        <i class="fa-solid fa-camera"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-slate-400">Snapshot Kamera Depan</p>
+                        <p class="text-xl font-black text-cyan-600">{{ $stats['total_snapshots'] }}</p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3.5">
+                    <div class="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 text-xl font-bold">
+                        <i class="fa-solid fa-users"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-slate-400">Siswa Terdaftar</p>
+                        <p class="text-xl font-black text-emerald-600">{{ $stats['total_students'] }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabel 1: Riwayat & Hasil Ujian Siswa (dengan Fitur Hapus Ujian) -->
+            <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-file-signature text-indigo-600"></i>
+                            Hasil Pengerjaan Ujian Siswa ({{ $recentResults->count() }})
+                        </h3>
+                        <p class="text-xs text-slate-500">Admin dapat menghapus ujian yang telah diambil jika siswa memerlukan remedi atau ingin ujian ulang.</p>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs text-left">
+                        <thead class="bg-slate-50 text-slate-500 uppercase font-black text-[11px] border-b border-slate-200">
+                            <tr>
+                                <th class="py-3.5 px-4">Siswa</th>
+                                <th class="py-3.5 px-4">Kelas & Ujian</th>
+                                <th class="py-3.5 px-4 text-center">Nilai / Skor</th>
+                                <th class="py-3.5 px-4">Rincian Jawaban</th>
+                                <th class="py-3.5 px-4">Waktu Pengerjaan</th>
+                                <th class="py-3.5 px-4">Tanggal Ujian</th>
+                                <th class="py-3.5 px-4 text-center">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @forelse($recentResults as $res)
+                                @php
+                                    $scoreBg = $res->score >= 75 ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : ($res->score >= 50 ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-rose-100 text-rose-800 border-rose-200');
+                                @endphp
+                                <tr class="hover:bg-slate-50/80 transition">
+                                    <td class="py-3 px-4">
+                                        <div class="flex items-center gap-2.5">
+                                            <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0">
+                                                {{ strtoupper(substr($res->user->name ?? 'S', 0, 1)) }}
+                                            </div>
+                                            <div>
+                                                <p class="font-bold text-slate-900">{{ $res->user->name ?? 'Siswa' }}</p>
+                                                <p class="text-[11px] text-slate-400 font-mono">{{ $res->user->username ?? '-' }}</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        <p class="font-bold text-slate-800">{{ $res->subject->title ?? 'Ujian' }}</p>
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-black bg-slate-100 text-slate-600">
+                                            Kelas {{ $res->grade }} SD
+                                        </span>
+                                    </td>
+                                    <td class="py-3 px-4 text-center">
+                                        <span class="px-3 py-1 rounded-xl text-sm font-black border {{ $scoreBg }} inline-block">
+                                            {{ $res->score }}
+                                        </span>
+                                    </td>
+                                    <td class="py-3 px-4 text-slate-700">
+                                        <div class="space-y-0.5 text-[11px]">
+                                            <span class="text-emerald-700 font-bold"><i class="fa-solid fa-check"></i> {{ $res->correct_count }} Benar</span> •
+                                            <span class="text-rose-700 font-bold"><i class="fa-solid fa-xmark"></i> {{ $res->wrong_count }} Salah</span> •
+                                            <span class="text-slate-500 font-bold"><i class="fa-solid fa-minus"></i> {{ $res->unanswered_count }} Kosong</span>
+                                        </div>
+                                    </td>
+                                    <td class="py-3 px-4 font-mono text-slate-600 text-[11px]">
+                                        <i class="fa-regular fa-clock text-slate-400 mr-1"></i>
+                                        {{ floor($res->time_spent_seconds / 60) }}m {{ $res->time_spent_seconds % 60 }}s
+                                    </td>
+                                    <td class="py-3 px-4 text-slate-500 text-[11px]">
+                                        <p class="font-semibold">{{ $res->created_at ? $res->created_at->format('d M Y, H:i') : '-' }}</p>
+                                        <p class="text-[10px] text-slate-400">{{ $res->created_at ? $res->created_at->diffForHumans() : '' }}</p>
+                                    </td>
+                                    <td class="py-3 px-4 text-center">
+                                        <form action="{{ route('admin.exam-results.delete', $res->id) }}" method="POST"
+                                              onsubmit="return confirm('HAPUS UJIAN INI?\n\nSiswa: {{ $res->user->name ?? 'Siswa' }}\nMapel: {{ $res->subject->title ?? 'Ujian' }}\nSkor: {{ $res->score }}\n\nSetelah dihapus, siswa dapat mengambil dan mengerjakan ulang ujian ini.');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit"
+                                                    class="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 font-bold text-xs transition border border-rose-200 inline-flex items-center gap-1.5 shadow-sm">
+                                                <i class="fa-solid fa-trash text-xs"></i> Hapus Ujian
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="7" class="py-10 text-center text-slate-400">
+                                        <i class="fa-solid fa-clipboard-question text-3xl text-slate-300 mb-2"></i>
+                                        <p class="font-semibold">Belum ada siswa yang mengambil atau menyelesaikan ujian.</p>
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Grid 2 Kolom: Log Pelanggaran Real-time & Galeri Snapshot Kamera -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+                <!-- Log Pelanggaran AI Proctoring (8 cols) -->
+                <div class="lg:col-span-8 bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden space-y-3">
+                    <div class="p-5 border-b border-slate-200 flex items-center justify-between">
+                        <div>
+                            <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                                <i class="fa-solid fa-triangle-exclamation text-rose-500"></i>
+                                Log Catatan Pelanggaran AI Proctoring ({{ $recentViolations->count() }})
+                            </h3>
+                            <p class="text-xs text-slate-500">Terdeteksi otomatis oleh ML Kit Face Tracking & Pengawas Aplikasi CAT</p>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
+                        <table class="w-full text-xs text-left">
+                            <thead class="bg-slate-50 text-slate-500 uppercase font-black text-[10px] border-b sticky top-0 z-10">
+                                <tr>
+                                    <th class="py-2.5 px-3">Siswa</th>
+                                    <th class="py-2.5 px-3">Tipe Pelanggaran</th>
+                                    <th class="py-2.5 px-3">Keterangan</th>
+                                    <th class="py-2.5 px-3">Soal</th>
+                                    <th class="py-2.5 px-3">Waktu</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                @forelse($recentViolations as $log)
+                                    @php
+                                        $typeBadge = match($log->violation_type) {
+                                            'SWITCH_TAB'        => ['bg' => 'bg-purple-100 text-purple-800 border-purple-200', 'icon' => 'fa-arrow-up-right-from-square', 'label' => 'Pindah Aplikasi'],
+                                            'NO_FACE'           => ['bg' => 'bg-rose-100 text-rose-800 border-rose-200', 'icon' => 'fa-user-slash', 'label' => 'Wajah Hilang'],
+                                            'MULTIPLE_FACES'    => ['bg' => 'bg-amber-100 text-amber-800 border-amber-200', 'icon' => 'fa-users', 'label' => 'Multi Wajah'],
+                                            'LOOKING_AWAY'      => ['bg' => 'bg-orange-100 text-orange-800 border-orange-200', 'icon' => 'fa-eye-slash', 'label' => 'Menoleh'],
+                                            'RAPID_ANSWERING'   => ['bg' => 'bg-yellow-100 text-yellow-900 border-yellow-200', 'icon' => 'fa-bolt', 'label' => 'Jawab Kilat'],
+                                            'SNAPSHOT_CAPTURED' => ['bg' => 'bg-cyan-100 text-cyan-800 border-cyan-200', 'icon' => 'fa-camera', 'label' => 'Snapshot'],
+                                            default             => ['bg' => 'bg-slate-100 text-slate-800 border-slate-200', 'icon' => 'fa-shield-halved', 'label' => $log->violation_type],
+                                        };
+                                    @endphp
+                                    <tr class="hover:bg-slate-50 transition">
+                                        <td class="py-2.5 px-3 font-bold text-slate-900">
+                                            {{ $log->user->name ?? 'Siswa' }}
+                                            <span class="block text-[10px] text-slate-400 font-normal">Kls {{ $log->user->grade ?? '-' }} SD</span>
+                                        </td>
+                                        <td class="py-2.5 px-3">
+                                            <span class="px-2 py-0.5 rounded-lg text-[10px] font-black border {{ $typeBadge['bg'] }} inline-flex items-center gap-1">
+                                                <i class="fa-solid {{ $typeBadge['icon'] }} text-[9px]"></i>
+                                                {{ $typeBadge['label'] }}
+                                            </span>
+                                        </td>
+                                        <td class="py-2.5 px-3 text-slate-700 font-medium">
+                                            {{ $log->description }}
+                                        </td>
+                                        <td class="py-2.5 px-3 text-slate-500 font-mono text-[11px]">
+                                            {{ $log->question_index !== null ? '#' . ($log->question_index + 1) : '-' }}
+                                        </td>
+                                        <td class="py-2.5 px-3 text-slate-400 text-[11px] whitespace-nowrap">
+                                            {{ $log->created_at ? $log->created_at->format('H:i:s') : '-' }}
+                                            <span class="block text-[10px]">{{ $log->created_at ? $log->created_at->diffForHumans() : '' }}</span>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="py-8 text-center text-slate-400">
+                                            <i class="fa-solid fa-circle-check text-2xl text-emerald-400 mb-1"></i>
+                                            <p class="font-bold">Tidak ada catatan pelanggaran.</p>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Galeri Snapshot Kamera Depan (4 cols) -->
+                <div class="lg:col-span-4 bg-white rounded-3xl border border-slate-200 shadow-sm p-5 space-y-4">
+                    <div>
+                        <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-camera-retro text-cyan-600"></i>
+                            Snapshot Kamera Siswa ({{ $recentSnapshots->count() }})
+                        </h3>
+                        <p class="text-xs text-slate-500">Tangkapan foto acak selama siswa ujian</p>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 max-h-[580px] overflow-y-auto pr-1">
+                        @forelse($recentSnapshots as $snap)
+                            <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden group shadow-sm">
+                                <div class="aspect-video bg-slate-900 relative overflow-hidden flex items-center justify-center cursor-pointer"
+                                     onclick="previewSnapshot('{{ Storage::url($snap->file_path) }}', '{{ $snap->user->name ?? 'Siswa' }}')">
+                                    <img src="{{ Storage::url($snap->file_path) }}" alt="Snapshot Siswa"
+                                         class="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                                         onerror="this.src='https://placehold.co/300x200/indigo/white?text=Foto+Snapshot'">
+                                    <div class="absolute bottom-1 right-1 bg-black/60 text-[9px] text-white px-1.5 py-0.5 rounded font-mono">
+                                        {{ $snap->created_at ? $snap->created_at->format('H:i') : '' }}
+                                    </div>
+                                </div>
+                                <div class="p-2 text-[11px]">
+                                    <p class="font-bold text-slate-800 truncate">{{ $snap->user->name ?? 'Siswa' }}</p>
+                                    <p class="text-[10px] text-slate-400">{{ $snap->created_at ? $snap->created_at->diffForHumans() : '' }}</p>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="col-span-2 bg-slate-50 p-6 rounded-2xl border border-dashed border-slate-300 text-center text-slate-400">
+                                <i class="fa-solid fa-camera text-3xl text-slate-300 mb-2"></i>
+                                <p class="text-xs font-bold text-slate-600">Belum ada snapshot kamera</p>
+                                <p class="text-[11px] text-slate-400 mt-1">Snapshot kamera depan siswa yang diambil selama ujian akan tampil di sini secara real-time.</p>
+                            </div>
+                        @endforelse
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
         @else
-        <!-- ================= TAB: MANAJEMEN AKUN SISWA & GURU ================= -->
-        <section class="space-y-4">
+        <!-- ================= TAB: MANAJEMEN AKUN & PASSWORD SISWA & GURU ================= -->
+        <section class="space-y-6">
+
+            <!-- Card: Pengaturan Kode Penggantian Kelas Siswa -->
+            <div id="settings-class-code" class="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-5 rounded-3xl shadow-sm border border-amber-300/60 flex flex-wrap items-center justify-between gap-4">
+                <div class="space-y-1">
+                    <div class="inline-flex items-center gap-1.5 text-xs font-bold text-amber-900 bg-amber-100 px-3 py-1 rounded-full border border-amber-300">
+                        <i class="fa-solid fa-key text-amber-600"></i> Otorisasi Perpindahan Kelas Siswa
+                    </div>
+                    <h3 class="text-base font-extrabold text-slate-900">Pengaturan Kode Penggantian Tingkat Kelas</h3>
+                    <p class="text-xs text-slate-600">Siswa wajib memasukkan kode ini pada menu "Ganti Tingkat Kelas" di aplikasi jika ingin pindah kelas SD.</p>
+                </div>
+
+                <form action="{{ route('admin.settings.class-change-code') }}" method="POST" class="flex items-center gap-2 flex-wrap">
+                    @csrf
+                    <div class="flex items-center gap-2 bg-white border border-slate-300 rounded-2xl px-3 py-2 shadow-sm focus-within:ring-2 focus-within:ring-amber-500">
+                        <i class="fa-solid fa-lock text-amber-500 text-xs"></i>
+                        <input type="text" name="class_change_code" value="{{ $classChangeCode }}" required placeholder="Contoh: unpkediri"
+                               class="bg-transparent text-xs font-mono font-bold text-slate-900 focus:outline-none w-36">
+                    </div>
+                    <button type="submit" class="bg-amber-500 hover:bg-amber-600 text-slate-900 px-4 py-2 rounded-2xl text-xs font-bold shadow-md hover:shadow-lg transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-check"></i> Simpan Kode Baru
+                    </button>
+                </form>
+            </div>
+
+            <!-- Header Manajemen Akun -->
             <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <h2 class="text-lg font-black text-slate-900 flex items-center gap-2">
                         <i class="fa-solid fa-users-gear text-indigo-600"></i>
                         Manajemen Akun Siswa & Guru
                     </h2>
-                    <p class="text-xs text-slate-500">Kelola hak akses, username, password, dan kelas akun untuk ujian.</p>
+                    <p class="text-xs text-slate-500">Kelola hak akses, username, password yang dapat dilihat langsung oleh admin, dan kelas akun.</p>
                 </div>
 
                 <button onclick="openModal('modalCreateUser')"
@@ -427,6 +761,7 @@
                             <tr>
                                 <th class="py-3.5 px-4">Pengguna / Nama</th>
                                 <th class="py-3.5 px-4">Username</th>
+                                <th class="py-3.5 px-4">Password</th>
                                 <th class="py-3.5 px-4">Hak Akses / Role</th>
                                 <th class="py-3.5 px-4">Tingkat Kelas</th>
                                 <th class="py-3.5 px-4">Waktu Terdaftar</th>
@@ -443,12 +778,23 @@
                                             </div>
                                             <div>
                                                 <p class="font-bold text-slate-900 text-sm">{{ $u->name }}</p>
-                                                <p class="text-[11px] text-slate-400">Avatar: {{ $u->avatar ?? 'av1' }}</p>
+                                                <p class="text-[11px] text-slate-400">NISN/ID: {{ $u->nomor_induk ?? '-' }}</p>
                                             </div>
                                         </div>
                                     </td>
                                     <td class="py-3 px-4 font-mono font-bold text-slate-700 text-sm">
                                         {{ $u->username }}
+                                    </td>
+                                    <td class="py-3 px-4 font-mono text-xs">
+                                        <div class="inline-flex items-center gap-2 bg-slate-100/90 px-3 py-1.5 rounded-xl border border-slate-200">
+                                            <span id="pwd-{{ $u->id }}" data-pass="{{ $u->plain_password ?? 'unpkediri' }}" class="font-extrabold text-slate-800 tracking-wider">••••••••</span>
+                                            <button type="button" onclick="togglePasswordVisibility('pwd-{{ $u->id }}', this)" title="Lihat/Sembunyikan Password" class="text-slate-500 hover:text-indigo-600 transition">
+                                                <i class="fa-solid fa-eye text-xs"></i>
+                                            </button>
+                                            <button type="button" onclick="copyPassword('{{ $u->plain_password ?? 'unpkediri' }}')" title="Salin Password" class="text-slate-400 hover:text-emerald-600 transition">
+                                                <i class="fa-regular fa-copy text-xs"></i>
+                                            </button>
+                                        </div>
                                     </td>
                                     <td class="py-3 px-4">
                                         @if($u->is_admin)
@@ -492,7 +838,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="py-8 text-center text-slate-400 font-medium">Belum ada data akun user terdaftar.</td>
+                                    <td colspan="7" class="py-8 text-center text-slate-400 font-medium">Belum ada data akun user terdaftar.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -609,9 +955,12 @@
                 </div>
 
                 <div>
-                    <label class="block mb-1">Password Baru (Kosongkan jika tidak ingin diubah)</label>
-                    <input type="password" id="edit_user_password" name="password" placeholder="Kosongkan jika tidak ganti password"
-                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block">Password Akun</label>
+                        <span class="text-[11px] text-slate-500">Password saat ini: <strong id="edit_user_current_pass" class="font-mono text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200"></strong></span>
+                    </div>
+                    <input type="text" id="edit_user_password" name="password" placeholder="Kosongkan jika tidak ingin ganti password"
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
@@ -1038,6 +1387,7 @@
             document.getElementById('edit_user_username').value = u.username || '';
             document.getElementById('edit_user_nomor_induk').value = u.nomor_induk || '';
             document.getElementById('edit_user_password').value = '';
+            document.getElementById('edit_user_current_pass').textContent = u.plain_password || 'unpkediri';
             document.getElementById('edit_user_grade').value = u.grade || 1;
             document.getElementById('edit_user_avatar').value = u.avatar || 'av1';
             document.getElementById('edit_user_is_admin').checked = !!u.is_admin;
@@ -1047,6 +1397,106 @@
 
             openModal('modalEditUser');
         }
+
+        // Toggle Password Plaintext Visibility
+        function togglePasswordVisibility(spanId, btn) {
+            const span = document.getElementById(spanId);
+            const icon = btn.querySelector('i');
+            const plainPass = span.getAttribute('data-pass') || 'unpkediri';
+
+            if (span.textContent === '••••••••') {
+                span.textContent = plainPass;
+                span.classList.remove('tracking-wider');
+                span.classList.add('text-indigo-700');
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                span.textContent = '••••••••';
+                span.classList.add('tracking-wider');
+                span.classList.remove('text-indigo-700');
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
+        // Copy Password to Clipboard
+        function copyPassword(text) {
+            if (!text) text = 'unpkediri';
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Password "' + text + '" berhasil disalin ke clipboard!');
+            }).catch(() => {
+                prompt('Salin password:', text);
+            });
+        }
+
+        // Snapshot Preview Modal
+        function previewSnapshot(url, studentName) {
+            document.getElementById('snapshotModalImg').src = url;
+            document.getElementById('snapshotModalTitle').innerHTML = '<i class="fa-solid fa-camera text-cyan-600"></i> Snapshot Kamera: ' + (studentName || 'Siswa');
+            openModal('modalSnapshotPreview');
+        }
+
+        // Auto Refresh for AI Proctoring Monitor (10 seconds)
+        let autoRefreshTimer = null;
+        let isAutoRefreshActive = true;
+
+        function startAutoRefresh() {
+            if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+            autoRefreshTimer = setInterval(() => {
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('tab') === 'monitoring') {
+                    window.location.reload();
+                }
+            }, 10000);
+        }
+
+        function toggleAutoRefresh() {
+            const btn = document.getElementById('btnAutoRefresh');
+            const dot = document.getElementById('dotAutoRefresh');
+            const txt = document.getElementById('textAutoRefresh');
+
+            if (isAutoRefreshActive) {
+                clearInterval(autoRefreshTimer);
+                isAutoRefreshActive = false;
+                dot.classList.remove('bg-emerald-400');
+                dot.classList.add('bg-slate-400');
+                txt.textContent = 'Auto-Refresh: Mati';
+                btn.classList.remove('bg-emerald-500/20', 'text-emerald-300', 'border-emerald-400/30');
+                btn.classList.add('bg-slate-500/20', 'text-slate-400', 'border-slate-400/30');
+            } else {
+                isAutoRefreshActive = true;
+                dot.classList.remove('bg-slate-400');
+                dot.classList.add('bg-emerald-400');
+                txt.textContent = 'Auto-Refresh: Aktif (10s)';
+                btn.classList.add('bg-emerald-500/20', 'text-emerald-300', 'border-emerald-400/30');
+                btn.classList.remove('bg-slate-500/20', 'text-slate-400', 'border-slate-400/30');
+                startAutoRefresh();
+            }
+        }
+
+        // Initialize auto-refresh only on monitoring tab
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('tab') === 'monitoring') {
+            startAutoRefresh();
+        }
     </script>
+
+    <!-- Modal Preview Snapshot Kamera -->
+    <div id="modalSnapshotPreview" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-5 shadow-2xl space-y-3">
+            <div class="flex items-center justify-between border-b pb-2.5">
+                <h4 id="snapshotModalTitle" class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-camera text-cyan-600"></i> Snapshot Kamera Siswa
+                </h4>
+                <button onclick="closeModal('modalSnapshotPreview')" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+            <div class="rounded-2xl overflow-hidden bg-slate-950 flex items-center justify-center p-2">
+                <img id="snapshotModalImg" src="" alt="Snapshot Siswa" class="max-h-[65vh] w-auto rounded-xl object-contain shadow-inner">
+            </div>
+            <div class="text-right">
+                <button type="button" onclick="closeModal('modalSnapshotPreview')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">Tutup</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

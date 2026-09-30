@@ -350,6 +350,94 @@ object CatApiClient {
         false
     }
 
+    /**
+     * Kirim log pelanggaran AI proctoring ke backend real-time
+     */
+    suspend fun logViolation(
+        username: String,
+        violationType: String,
+        description: String,
+        questionIndex: Int? = null,
+        token: String? = null
+    ): Boolean = withContext(Dispatchers.IO) {
+        val urlsToTry = getCandidateUrls()
+        for (baseUrl in urlsToTry) {
+            try {
+                val url = URL("$baseUrl/proctoring/log")
+                val conn = (url.openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    connectTimeout = 3000
+                    readTimeout = 3000
+                    doOutput = true
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Accept", "application/json")
+                    if (!token.isNullOrBlank()) {
+                        setRequestProperty("Authorization", "Bearer $token")
+                    }
+                }
+
+                val body = JSONObject().apply {
+                    put("username", username)
+                    put("violation_type", violationType)
+                    put("description", description)
+                    if (questionIndex != null) {
+                        put("question_index", questionIndex)
+                    }
+                    put("timestamp_ms", System.currentTimeMillis())
+                }
+
+                OutputStreamWriter(conn.outputStream).use { it.write(body.toString()) }
+
+                if (conn.responseCode in 200..299) {
+                    currentBaseUrl = baseUrl
+                    return@withContext true
+                }
+            } catch (_: Exception) {
+            }
+        }
+        false
+    }
+
+    /**
+     * Verifikasi kode otorisasi penggantian tingkat kelas ke backend
+     */
+    suspend fun verifyClassChangeCode(code: String): Boolean = withContext(Dispatchers.IO) {
+        val trimmed = code.trim()
+        if (trimmed.isEmpty()) return@withContext false
+
+        val urlsToTry = getCandidateUrls()
+        for (baseUrl in urlsToTry) {
+            try {
+                val url = URL("$baseUrl/class-code/verify")
+                val conn = (url.openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    connectTimeout = 3000
+                    readTimeout = 4000
+                    doOutput = true
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Accept", "application/json")
+                }
+
+                val body = JSONObject().apply {
+                    put("code", trimmed)
+                }
+
+                OutputStreamWriter(conn.outputStream).use { it.write(body.toString()) }
+
+                if (conn.responseCode in 200..299) {
+                    currentBaseUrl = baseUrl
+                    val res = conn.inputStream.bufferedReader().use { it.readText() }
+                    val json = JSONObject(res)
+                    return@withContext json.optBoolean("success", false)
+                }
+            } catch (_: Exception) {
+            }
+        }
+
+        // Fallback jika server tidak terjangkau: cek kode default
+        trimmed.equals("unpkediri", ignoreCase = true)
+    }
+
     suspend fun submitExamResult(
         subjectId: String,
         grade: Int,
@@ -389,6 +477,48 @@ object CatApiClient {
         } catch (_: Exception) {
             false
         }
+    }
+
+    /**
+     * Fetch exam history from backend for a given username.
+     * Returns list of (subjectId, grade) pairs that currently exist in backend.
+     * Returns null if backend is unreachable.
+     */
+    suspend fun getExamHistoryFromBackend(username: String): List<Pair<String, Int>>? = withContext(Dispatchers.IO) {
+        val urlsToTry = getCandidateUrls()
+        for (baseUrl in urlsToTry) {
+            try {
+                val url = URL("$baseUrl/exam/history?username=${username.trim()}")
+                val conn = (url.openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    connectTimeout = 4000
+                    readTimeout = 5000
+                    setRequestProperty("Accept", "application/json")
+                }
+
+                if (conn.responseCode == 200) {
+                    currentBaseUrl = baseUrl
+                    val response = conn.inputStream.bufferedReader().use { it.readText() }
+                    val json = JSONObject(response)
+                    if (json.optBoolean("success")) {
+                        val historyArray = json.optJSONArray("history") ?: JSONArray()
+                        val list = mutableListOf<Pair<String, Int>>()
+                        for (i in 0 until historyArray.length()) {
+                            val item = historyArray.getJSONObject(i)
+                            val subjectId = item.optString("subject_id", "")
+                            val grade = item.optInt("grade", 0)
+                            if (subjectId.isNotBlank() && grade > 0) {
+                                list.add(Pair(subjectId, grade))
+                            }
+                        }
+                        return@withContext list
+                    }
+                }
+            } catch (_: Exception) {
+                // Try next URL
+            }
+        }
+        null
     }
 
     private fun resolveImageUrl(baseUrl: String, path: String): String {

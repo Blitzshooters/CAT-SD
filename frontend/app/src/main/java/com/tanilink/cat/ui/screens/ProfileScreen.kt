@@ -30,6 +30,7 @@ import com.tanilink.cat.data.SampleData
 import com.tanilink.cat.model.AppThemeOption
 import com.tanilink.cat.model.ExamResult
 import com.tanilink.cat.model.UserAvatar
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,6 +63,8 @@ fun ProfileScreen(
     var isUploadingPhoto by remember { mutableStateOf(false) }
     var photoUploadMsg by remember { mutableStateOf<String?>(null) }
     var isSavedShow by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+    var isVerifyingGradeCode by remember { mutableStateOf(false) }
 
     LaunchedEffect(customAvatarUrl) {
         if (customAvatarUrl.isNotBlank()) {
@@ -250,17 +253,31 @@ fun ProfileScreen(
                             label = { Text("Nomor Induk Siswa (NISN / NIK)") },
                             leadingIcon = { Icon(Icons.Default.Badge, contentDescription = null) },
                             trailingIcon = {
-                                if (nomorInduk.isNotBlank()) Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = MaterialTheme.colorScheme.secondaryContainer
-                                ) {
-                                    Text(
-                                        text = "Terverifikasi",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
+                                if (nomorInduk.isNotBlank()) {
+                                    Surface(
+                                        shape = RoundedCornerShape(20.dp),
+                                        color = Color(0xFFDCFCE7),
+                                        modifier = Modifier.padding(end = 8.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Verified,
+                                                contentDescription = "Terverifikasi",
+                                                tint = Color(0xFF166534),
+                                                modifier = Modifier.size(13.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = "Terverifikasi",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF166534)
+                                            )
+                                        }
+                                    }
                                 }
                             },
                             singleLine = true,
@@ -363,14 +380,18 @@ fun ProfileScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             SampleData.avatars.forEach { av ->
-                                val isSelected = tempAvatar.id == av.id
+                                val isSelected = tempAvatar.id == av.id && customPhotoBitmap == null
                                 Surface(
                                     shape = CircleShape,
                                     color = av.backgroundColor,
                                     border = if (isSelected) androidx.compose.foundation.BorderStroke(3.dp, MaterialTheme.colorScheme.primary) else null,
                                     modifier = Modifier
                                         .size(54.dp)
-                                        .clickable { tempAvatar = av }
+                                        .clickable {
+                                            tempAvatar = av
+                                            customPhotoBitmap = null
+                                            photoUploadMsg = null
+                                        }
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
@@ -409,16 +430,27 @@ fun ProfileScreen(
                             )
                             if (isAdmin) {
                                 Surface(
-                                    shape = RoundedCornerShape(8.dp),
+                                    shape = RoundedCornerShape(20.dp),
                                     color = Color(0xFFDCFCE7)
                                 ) {
-                                    Text(
-                                        text = "Akses Admin (Bebas Ubah)",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF166534),
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.AdminPanelSettings,
+                                            contentDescription = null,
+                                            tint = Color(0xFF166534),
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "Akses Admin (Bebas Ubah)",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF166534)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -705,20 +737,36 @@ fun ProfileScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        if (gradeCodeInput.trim().equals("unpkediri", ignoreCase = true)) {
-                            val targetGrade = pendingGradeChange!!
-                            tempGrade = targetGrade
-                            onUpdateProfile(nameInput, targetGrade, tempAvatar)
-                            pendingGradeChange = null
-                            isSavedShow = true
-                        } else {
-                            gradeCodeErrorMsg = "Kode khusus salah! Perubahan kelas dibatalkan."
+                        val input = gradeCodeInput.trim()
+                        if (input.isEmpty()) {
+                            gradeCodeErrorMsg = "Masukkan kode khusus terlebih dahulu."
+                            return@Button
+                        }
+                        isVerifyingGradeCode = true
+                        gradeCodeErrorMsg = null
+                        coroutineScope.launch {
+                            val isValid = CatApiClient.verifyClassChangeCode(input)
+                            isVerifyingGradeCode = false
+                            if (isValid) {
+                                val targetGrade = pendingGradeChange!!
+                                tempGrade = targetGrade
+                                onUpdateProfile(nameInput, targetGrade, tempAvatar)
+                                pendingGradeChange = null
+                                isSavedShow = true
+                            } else {
+                                gradeCodeErrorMsg = "Kode khusus salah! Perubahan kelas dibatalkan."
+                            }
                         }
                     },
+                    enabled = !isVerifyingGradeCode,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4F46E5)),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Konfirmasi & Ubah", fontWeight = FontWeight.Bold)
+                    if (isVerifyingGradeCode) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                    } else {
+                        Text("Konfirmasi & Ubah", fontWeight = FontWeight.Bold)
+                    }
                 }
             },
             dismissButton = {
@@ -957,17 +1005,37 @@ fun ProfileScreen(
                             matrix.postTranslate((300f - srcW * scale) / 2f + photoOffsetX, (300f - srcH * scale) / 2f + photoOffsetY)
                             
                             canvas.drawBitmap(rawPhotoBitmap!!, matrix, paint)
+                            val customUser = UserAvatar(
+                                id = "custom",
+                                name = "Foto Profil Kustom",
+                                iconName = "Person",
+                                backgroundColor = Color(0xFF818CF8)
+                            )
                             customPhotoBitmap = resultBitmap
+                            tempAvatar = customUser
 
                             onUploadPhoto(resultBitmap) { success, msg ->
                                 isUploadingPhoto = false
                                 photoUploadMsg = msg
+                                if (success) {
+                                    onUpdateProfile(nameInput, tempGrade, customUser)
+                                }
                             }
                         } catch (e: Exception) {
+                            val customUser = UserAvatar(
+                                id = "custom",
+                                name = "Foto Profil Kustom",
+                                iconName = "Person",
+                                backgroundColor = Color(0xFF818CF8)
+                            )
                             customPhotoBitmap = rawPhotoBitmap
+                            tempAvatar = customUser
                             onUploadPhoto(rawPhotoBitmap!!) { success, msg ->
                                 isUploadingPhoto = false
                                 photoUploadMsg = msg
+                                if (success) {
+                                    onUpdateProfile(nameInput, tempGrade, customUser)
+                                }
                             }
                         }
                     },

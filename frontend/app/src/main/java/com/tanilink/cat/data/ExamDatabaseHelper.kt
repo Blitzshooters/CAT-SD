@@ -173,6 +173,19 @@ class ExamDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
         return db.delete(TABLE_EXAM_RESULTS, "$COLUMN_TIMESTAMP = ?", arrayOf(timestamp.toString()))
     }
 
+    /**
+     * Delete all local exam results for a specific subjectId + grade (used when syncing with backend:
+     * if backend no longer has this result, it was deleted by admin, so remove locally too).
+     */
+    fun deleteExamResultBySubjectAndGrade(subjectId: String, grade: Int): Int {
+        val db = writableDatabase
+        return db.delete(
+            TABLE_EXAM_RESULTS,
+            "$COLUMN_SUBJECT_ID = ? AND $COLUMN_GRADE = ?",
+            arrayOf(subjectId, grade.toString())
+        )
+    }
+
     fun deleteAllExamResults(): Int {
         val db = writableDatabase
         return db.delete(TABLE_EXAM_RESULTS, null, null)

@@ -15,6 +15,7 @@ class User extends Authenticatable implements JWTSubject
         'username',
         'nomor_induk',
         'password',
+        'plain_password',
         'grade',
         'avatar',
         'is_admin',

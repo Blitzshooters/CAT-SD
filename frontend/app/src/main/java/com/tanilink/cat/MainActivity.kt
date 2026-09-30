@@ -182,6 +182,7 @@ fun CatAppNavigation(viewModel: ExamViewModel) {
                                 studentName = studentName,
                                 selectedGrade = selectedGrade,
                                 selectedAvatar = selectedAvatar,
+                                customAvatarUrl = customAvatarUrl,
                                 examHistory = examHistory,
                                 subjects = backendSubjects,
                                 isAdmin = isAdmin,

@@ -24,4 +24,13 @@ Route::prefix('admin')->group(function () {
     Route::post('/users', [AdminController::class, 'storeUser'])->name('admin.users.store');
     Route::put('/users/{id}', [AdminController::class, 'updateUser'])->name('admin.users.update');
     Route::delete('/users/{id}', [AdminController::class, 'deleteUser'])->name('admin.users.delete');
+
+    // Exam Results Deletion (Hapus ujian yang telah diambil user)
+    Route::delete('/exam-results/{id}', [AdminController::class, 'deleteExamResult'])->name('admin.exam-results.delete');
+
+    // System Settings (Kode Penggantian Kelas)
+    Route::post('/settings/class-change-code', [AdminController::class, 'updateClassChangeCode'])->name('admin.settings.class-change-code');
+
+    // Proctoring Logs Management
+    Route::post('/proctoring/clear-logs', [AdminController::class, 'clearProctoringLogs'])->name('admin.proctoring.clear');
 });

@@ -159,12 +159,36 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadHistoryFromDatabase() {
         viewModelScope.launch(Dispatchers.IO) {
+            val username = prefs.getString("username", "") ?: ""
             val savedHistory = if (_isAdmin.value) {
                 dbHelper.getAllExamResults()
             } else {
                 dbHelper.getExamResultsForStudent(_studentName.value)
             }
             _examHistory.value = savedHistory
+
+            // Sync with backend: remove local records that admin deleted from backend
+            if (username.isNotBlank() && !_isAdmin.value) {
+                val backendEntries = CatApiClient.getExamHistoryFromBackend(username)
+                if (backendEntries != null) {
+                    // Find local records NOT in backend (admin deleted them)
+                    val deletedLocally = savedHistory.filter { local ->
+                        val localSubjectId = local.subjectId
+                        val localGrade = local.grade
+                        backendEntries.none { (backendSubjectId, backendGrade) ->
+                            backendSubjectId == localSubjectId && backendGrade == localGrade
+                        }
+                    }
+                    if (deletedLocally.isNotEmpty()) {
+                        deletedLocally.forEach { deleted ->
+                            dbHelper.deleteExamResultBySubjectAndGrade(deleted.subjectId, deleted.grade)
+                        }
+                        // Reload history after sync
+                        val updatedHistory = dbHelper.getExamResultsForStudent(_studentName.value)
+                        _examHistory.value = updatedHistory
+                    }
+                }
+            }
         }
     }
 
@@ -239,11 +263,16 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
         _selectedAvatar.value = avatar
 
         val username = prefs.getString("username", "") ?: ""
-        prefs.edit()
+        val editor = prefs.edit()
             .putString("student_name", name)
             .putInt("selected_grade", grade)
             .putString("avatar_id", avatar.id)
-            .apply()
+
+        if (avatar.id != "custom") {
+            _customAvatarUrl.value = ""
+            editor.putString("custom_avatar_url", "")
+        }
+        editor.apply()
 
         fetchSubjectsFromBackend(grade)
 
@@ -341,6 +370,10 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
 
     fun selectTab(tab: MainTab) {
         _activeTab.value = tab
+        // Refresh history from backend whenever the user opens the history tab
+        if (tab == MainTab.HISTORY) {
+            loadHistoryFromDatabase()
+        }
     }
 
     fun startExam(subject: ExamSubject) {
@@ -502,6 +535,22 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
     private fun addProctoringViolation(type: ViolationType, desc: String) {
         val violation = ProctoringViolation(type = type, description = desc)
         _proctoringLogs.update { listOf(violation) + it }
+
+        // Send violation report to backend API in real-time for live admin proctoring monitor
+        val username = prefs.getString("username", "")?.ifBlank { _studentName.value.lowercase().replace(" ", "") }
+            ?: _studentName.value.lowercase().replace(" ", "")
+        val token = _jwtToken.value.ifBlank { null }
+        val qIndex = _currentQuestionIndex.value
+
+        viewModelScope.launch(Dispatchers.IO) {
+            CatApiClient.logViolation(
+                username = username,
+                violationType = type.name,
+                description = desc,
+                questionIndex = qIndex,
+                token = token
+            )
+        }
     }
 
     fun toggleFlag(questionIndex: Int) {

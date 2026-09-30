@@ -11,8 +11,11 @@ local.properties
 
 # IDE files
 .idea/
+.vscode/
 *.iml
 .DS_Store
+.kotlin/
+**/.kotlin/
 
 # Android Studio / Gradle generated
 frontend/.gradle/

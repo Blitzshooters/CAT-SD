@@ -22,6 +22,8 @@ Route::get('/subjects/{subjectId}/questions', [ExamController::class, 'questions
 Route::post('/exam/verify-remedy', [ExamController::class, 'verifyRemedy']);
 Route::post('/exam/submit', [ExamController::class, 'submit']);
 Route::get('/exam/history', [ExamController::class, 'history']);
+Route::post('/class-code/verify', [ExamController::class, 'verifyClassCode']);
+Route::get('/class-code', [ExamController::class, 'getClassChangeCode']);
 
 // AI Proctoring
 Route::post('/proctoring/log', [ProctoringController::class, 'logViolation']);
@@ -33,7 +35,7 @@ Route::post('/user/profile', [AuthController::class, 'updateProfile']);
 Route::post('/user/change-password', [AuthController::class, 'changePassword']);
 Route::post('/user/upload-avatar', [AuthController::class, 'uploadAvatar']);
 
-// Admin API endpoints (CRUD Ujian, Soal, & Akun)
+// Admin API endpoints (CRUD Ujian, Soal, Akun, Hasil Ujian, & Settings)
 Route::prefix('admin')->group(function () {
     Route::post('/subjects', [AdminController::class, 'storeSubject']);
     Route::put('/subjects/{id}', [AdminController::class, 'updateSubject']);
@@ -46,6 +48,10 @@ Route::prefix('admin')->group(function () {
     Route::post('/users', [AdminController::class, 'storeUser']);
     Route::put('/users/{id}', [AdminController::class, 'updateUser']);
     Route::delete('/users/{id}', [AdminController::class, 'deleteUser']);
+
+    Route::delete('/exam-results/{id}', [AdminController::class, 'deleteExamResult']);
+    Route::post('/settings/class-change-code', [AdminController::class, 'updateClassChangeCode']);
+    Route::post('/proctoring/clear-logs', [AdminController::class, 'clearProctoringLogs']);
 });
 
 // Authenticated JWT Protected Group

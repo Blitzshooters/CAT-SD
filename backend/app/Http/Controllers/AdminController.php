@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AppSetting;
 use App\Models\ExamResult;
 use App\Models\ProctoringLog;
+use App\Models\ProctoringSnapshot;
 use App\Models\Question;
 use App\Models\Subject;
 use App\Models\User;
@@ -45,15 +47,23 @@ class AdminController extends Controller
         $users = User::orderBy('is_admin', 'desc')->orderBy('name')->get();
 
         $stats = [
-            'total_subjects'  => Subject::count(),
-            'total_questions' => Question::count(),
-            'total_students'  => User::where('is_admin', false)->count(),
-            'total_results'   => ExamResult::count(),
-            'total_violations'=> ProctoringLog::count(),
+            'total_subjects'   => Subject::count(),
+            'total_questions'  => Question::count(),
+            'total_students'   => User::where('is_admin', false)->count(),
+            'total_results'    => ExamResult::count(),
+            'total_violations' => ProctoringLog::count(),
+            'total_snapshots'  => ProctoringSnapshot::count(),
         ];
 
-        $recentResults = ExamResult::with(['user', 'subject'])->latest()->limit(10)->get();
-        $recentViolations = ProctoringLog::with('user')->latest()->limit(10)->get();
+        // All exam results taken by users (sorted latest first)
+        $recentResults = ExamResult::with(['user', 'subject'])->latest()->get();
+        // Violation logs with user info
+        $recentViolations = ProctoringLog::with(['user', 'examResult.subject'])->latest()->limit(50)->get();
+        // Web camera snapshot captures
+        $recentSnapshots = ProctoringSnapshot::with('user')->latest()->limit(24)->get();
+
+        // System settings
+        $classChangeCode = AppSetting::get('class_change_code', 'unpkediri');
 
         return view('admin.dashboard', compact(
             'subjects',
@@ -62,6 +72,8 @@ class AdminController extends Controller
             'stats',
             'recentResults',
             'recentViolations',
+            'recentSnapshots',
+            'classChangeCode',
             'grade',
             'users',
             'tab'
@@ -315,13 +327,14 @@ class AdminController extends Controller
         ]);
 
         $user = User::create([
-            'name'        => $validated['name'],
-            'username'    => strtolower(trim($validated['username'])),
-            'nomor_induk' => trim($validated['nomor_induk']),
-            'password'    => Hash::make($validated['password']),
-            'grade'       => (int)$validated['grade'],
-            'is_admin'    => !empty($request->input('is_admin')),
-            'avatar'      => $validated['avatar'] ?? 'av1',
+            'name'           => $validated['name'],
+            'username'       => strtolower(trim($validated['username'])),
+            'nomor_induk'    => trim($validated['nomor_induk']),
+            'password'       => Hash::make($validated['password']),
+            'plain_password' => $validated['password'],
+            'grade'          => (int)$validated['grade'],
+            'is_admin'       => !empty($request->input('is_admin')),
+            'avatar'         => $validated['avatar'] ?? 'av1',
         ]);
 
         if ($request->wantsJson()) {
@@ -361,6 +374,7 @@ class AdminController extends Controller
         }
         if (!empty($validated['password'])) {
             $user->password = Hash::make($validated['password']);
+            $user->plain_password = $validated['password'];
         }
         $user->save();
 
@@ -387,5 +401,67 @@ class AdminController extends Controller
 
         return redirect()->route('admin.dashboard', ['tab' => 'users'])
             ->with('success', 'Akun user "' . $name . '" berhasil dihapus.');
+    }
+
+    /**
+     * Delete an exam result taken by a user (memungkinkan siswa mengambil ulang ujian)
+     */
+    public function deleteExamResult(Request $request, int $id)
+    {
+        $result = ExamResult::findOrFail($id);
+        $userName = $result->user->name ?? 'Siswa';
+        $subjectTitle = $result->subject->title ?? 'Ujian';
+
+        // Delete associated proctoring logs & snapshots
+        ProctoringLog::where('exam_result_id', $id)->delete();
+        ProctoringSnapshot::where('exam_result_id', $id)->delete();
+
+        $result->delete();
+
+        if ($request->wantsJson()) {
+            return response()->json(['success' => true, 'message' => "Riwayat ujian {$subjectTitle} untuk {$userName} berhasil dihapus"]);
+        }
+
+        return redirect()->back()
+            ->with('success', "Riwayat pengerjaan ujian '{$subjectTitle}' siswa '{$userName}' berhasil dihapus. Siswa kini dapat mengambil ulang ujian.");
+    }
+
+    /**
+     * Update kode verifikasi penggantian kelas
+     */
+    public function updateClassChangeCode(Request $request)
+    {
+        $validated = $request->validate([
+            'class_change_code' => 'required|string|max:100',
+        ]);
+
+        $newCode = trim($validated['class_change_code']);
+        AppSetting::set('class_change_code', $newCode);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success'           => true,
+                'message'           => 'Kode penggantian kelas berhasil diperbarui',
+                'class_change_code' => $newCode,
+            ]);
+        }
+
+        return redirect()->back()
+            ->with('success', "Kode penggantian kelas berhasil diubah menjadi: \"{$newCode}\"");
+    }
+
+    /**
+     * Clear all proctoring logs
+     */
+    public function clearProctoringLogs(Request $request)
+    {
+        ProctoringLog::truncate();
+
+        if ($request->wantsJson()) {
+            return response()->json(['success' => true, 'message' => 'Semua log proctoring berhasil dibersihkan']);
+        }
+
+        return redirect()->back()
+            ->with('success', 'Semua riwayat catatan AI proctoring berhasil dibersihkan.');
     }
 }

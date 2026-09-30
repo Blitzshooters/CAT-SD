@@ -279,7 +279,11 @@ fun LoginScreen(
                         }
                     },
                     enabled = !isLoading,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                        disabledContentColor = Color.White
+                    ),
                     elevation = ButtonDefaults.buttonElevation(
                         defaultElevation = 6.dp,
                         pressedElevation = 2.dp,
@@ -291,18 +295,29 @@ fun LoginScreen(
                         .height(54.dp)
                         .shadow(4.dp, RoundedCornerShape(16.dp))
                 ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = Color.White,
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Memverifikasi...", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)
-                    } else {
-                        Icon(Icons.Default.Login, contentDescription = null, tint = Color.White)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Masuk Ujian", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(22.dp),
+                                color = Color.White,
+                                strokeWidth = 2.5.dp
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "Memverifikasi Akun...",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                color = Color.White
+                            )
+                        } else {
+                            Icon(Icons.Default.Login, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Masuk Ujian", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)
+                        }
                     }
                 }
             }
