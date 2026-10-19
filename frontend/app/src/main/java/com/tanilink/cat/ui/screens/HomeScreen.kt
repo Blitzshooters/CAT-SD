@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tanilink.cat.data.CatApiClient
 import com.tanilink.cat.data.SampleData
+import com.tanilink.cat.ui.components.CatImage
 import com.tanilink.cat.model.ExamResult
 import com.tanilink.cat.model.ExamSubject
 import com.tanilink.cat.model.UserAvatar
@@ -654,11 +655,21 @@ fun SubjectCard(
     isCompleted: Boolean = false,
     onStartClick: () -> Unit
 ) {
-    val icon = when (subject.iconName) {
-        "Calculate" -> Icons.Default.Calculate
-        "Science" -> Icons.Default.Science
-        "MenuBook" -> Icons.Default.MenuBook
-        else -> Icons.Default.Security
+    val isCustomImage = subject.iconName.contains("/") ||
+            subject.iconName.startsWith("http") ||
+            subject.iconName.endsWith(".png", ignoreCase = true) ||
+            subject.iconName.endsWith(".jpg", ignoreCase = true) ||
+            subject.iconName.endsWith(".jpeg", ignoreCase = true) ||
+            subject.iconName.endsWith(".webp", ignoreCase = true)
+
+    val presetIcon = when (subject.iconName.lowercase()) {
+        "calculate", "matematika" -> Icons.Default.Calculate
+        "science", "ipa", "sains" -> Icons.Default.Science
+        "menubook", "menu_book", "bahasa", "ips" -> Icons.Default.MenuBook
+        "flag", "pkn" -> Icons.Default.Flag
+        "palette", "seni" -> Icons.Default.Palette
+        "sports_soccer", "pjok", "olahraga" -> Icons.Default.SportsSoccer
+        else -> Icons.Default.School
     }
 
     Card(
@@ -681,12 +692,22 @@ fun SubjectCard(
                 modifier = Modifier.size(60.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = subject.primaryColor,
-                        modifier = Modifier.size(32.dp)
-                    )
+                    if (isCustomImage) {
+                        CatImage(
+                            imageUrl = subject.iconName,
+                            contentDescription = subject.title,
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                        )
+                    } else {
+                        Icon(
+                            imageVector = presetIcon,
+                            contentDescription = null,
+                            tint = subject.primaryColor,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
                 }
             }
 

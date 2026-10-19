@@ -140,19 +140,40 @@
                         @endphp
                         <div class="p-4 rounded-2xl border transition-all duration-200 {{ $isSelected ? 'bg-indigo-50/70 border-indigo-400 shadow-md ring-2 ring-indigo-200' : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm' }}">
                             <div class="flex items-start justify-between gap-2">
-                                <div class="space-y-1">
-                                    <div class="flex items-center gap-2 flex-wrap">
-                                        <span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider {{ $subj->grade <= 2 ? 'bg-emerald-100 text-emerald-800' : ($subj->grade <= 4 ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-800') }}">
-                                            Kelas {{ $subj->grade }} SD
-                                        </span>
-                                        <span class="text-xs text-slate-400 flex items-center gap-1">
-                                            <i class="fa-regular fa-clock"></i> {{ $subj->duration_minutes }} mnt
-                                        </span>
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-inner">
+                                        @if(str_contains($subj->icon_name ?? '', '/') || str_contains($subj->icon_name ?? '', '.'))
+                                            <img src="{{ $subj->icon_name }}" class="w-full h-full object-contain p-0.5">
+                                        @elseif(($subj->icon_name ?? '') === 'calculate')
+                                            <i class="fa-solid fa-calculator text-indigo-600 text-base"></i>
+                                        @elseif(($subj->icon_name ?? '') === 'science')
+                                            <i class="fa-solid fa-flask text-emerald-600 text-base"></i>
+                                        @elseif(($subj->icon_name ?? '') === 'menu_book')
+                                            <i class="fa-solid fa-book-open text-blue-600 text-base"></i>
+                                        @elseif(($subj->icon_name ?? '') === 'flag')
+                                            <i class="fa-solid fa-flag text-rose-600 text-base"></i>
+                                        @elseif(($subj->icon_name ?? '') === 'palette')
+                                            <i class="fa-solid fa-palette text-amber-600 text-base"></i>
+                                        @elseif(($subj->icon_name ?? '') === 'sports_soccer')
+                                            <i class="fa-solid fa-futbol text-teal-600 text-base"></i>
+                                        @else
+                                            <i class="fa-solid fa-graduation-cap text-indigo-600 text-base"></i>
+                                        @endif
                                     </div>
-                                    <a href="{{ route('admin.dashboard', ['grade' => $grade, 'subject_id' => $subj->id]) }}"
-                                       class="text-sm font-bold text-slate-900 hover:text-indigo-600 block line-clamp-1">
-                                        {{ $subj->title }}
-                                    </a>
+                                    <div class="space-y-1">
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider {{ $subj->grade <= 2 ? 'bg-emerald-100 text-emerald-800' : ($subj->grade <= 4 ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-800') }}">
+                                                Kelas {{ $subj->grade }} SD
+                                            </span>
+                                            <span class="text-xs text-slate-400 flex items-center gap-1">
+                                                <i class="fa-regular fa-clock"></i> {{ $subj->duration_minutes }} mnt
+                                            </span>
+                                        </div>
+                                        <a href="{{ route('admin.dashboard', ['grade' => $grade, 'subject_id' => $subj->id]) }}"
+                                           class="text-sm font-bold text-slate-900 hover:text-indigo-600 block line-clamp-1">
+                                            {{ $subj->title }}
+                                        </a>
+                                    </div>
                                 </div>
 
                                 <div class="flex items-center gap-1">
@@ -957,12 +978,38 @@
                 <button onclick="closeModal('modalCreateSubject')" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
             </div>
 
-            <form action="{{ route('admin.subjects.store') }}" method="POST" class="space-y-4 text-xs font-semibold text-slate-700">
+            <form action="{{ route('admin.subjects.store') }}" method="POST" enctype="multipart/form-data" class="space-y-4 text-xs font-semibold text-slate-700">
                 @csrf
                 <div>
                     <label class="block mb-1">Mata Pelajaran / Judul Ujian *</label>
                     <input type="text" name="title" required placeholder="Contoh: Matematika Pecahan & Desimal"
                            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block mb-1">Ikon / Gambar Ujian</label>
+                    <div class="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5">
+                        <div class="flex items-center gap-3">
+                            <input type="file" name="icon_file" accept="image/*" id="create_subj_icon_file"
+                                   onchange="previewSubjectIcon(this, 'create_subj_icon_preview', 'create_subj_icon_img')"
+                                   class="w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer">
+                            <div id="create_subj_icon_preview" class="w-10 h-10 rounded-xl bg-white border border-slate-200 hidden flex-shrink-0 flex items-center justify-center overflow-hidden shadow-sm">
+                                <img id="create_subj_icon_img" src="" class="w-full h-full object-contain">
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 pt-1 border-t border-slate-200/60">
+                            <span class="text-[11px] text-slate-500">Atau pilih preset ikon:</span>
+                            <select name="icon_name" class="px-2.5 py-1 rounded-lg border border-slate-300 text-xs bg-white text-slate-700 focus:outline-none">
+                                <option value="school">🎒 Sekolah / Umum (school)</option>
+                                <option value="calculate">🔢 Matematika (calculate)</option>
+                                <option value="science">🔬 Sains / IPA (science)</option>
+                                <option value="menu_book">📖 Bahasa / Literasi (menu_book)</option>
+                                <option value="flag">🇮🇩 PKn / Kewarganegaraan (flag)</option>
+                                <option value="palette">🎨 Seni Budaya (palette)</option>
+                                <option value="sports_soccer">⚽ PJOK / Olahraga (sports_soccer)</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
@@ -1022,13 +1069,39 @@
                 <button onclick="closeModal('modalEditSubject')" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
             </div>
 
-            <form id="formEditSubject" method="POST" class="space-y-4 text-xs font-semibold text-slate-700">
+            <form id="formEditSubject" method="POST" enctype="multipart/form-data" class="space-y-4 text-xs font-semibold text-slate-700">
                 @csrf
                 @method('PUT')
                 <div>
                     <label class="block mb-1">Mata Pelajaran / Judul Ujian *</label>
                     <input type="text" id="edit_subj_title" name="title" required
                            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block mb-1">Ikon / Gambar Ujian</label>
+                    <div class="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5">
+                        <div class="flex items-center gap-3">
+                            <input type="file" name="icon_file" accept="image/*" id="edit_subj_icon_file"
+                                   onchange="previewSubjectIcon(this, 'edit_subj_icon_preview', 'edit_subj_icon_img')"
+                                   class="w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer">
+                            <div id="edit_subj_icon_preview" class="w-10 h-10 rounded-xl bg-white border border-slate-200 hidden flex-shrink-0 flex items-center justify-center overflow-hidden shadow-sm">
+                                <img id="edit_subj_icon_img" src="" class="w-full h-full object-contain">
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 pt-1 border-t border-slate-200/60">
+                            <span class="text-[11px] text-slate-500">Atau pilih preset ikon:</span>
+                            <select id="edit_subj_icon_name" name="icon_name" class="px-2.5 py-1 rounded-lg border border-slate-300 text-xs bg-white text-slate-700 focus:outline-none">
+                                <option value="school">🎒 Sekolah / Umum (school)</option>
+                                <option value="calculate">🔢 Matematika (calculate)</option>
+                                <option value="science">🔬 Sains / IPA (science)</option>
+                                <option value="menu_book">📖 Bahasa / Literasi (menu_book)</option>
+                                <option value="flag">🇮🇩 PKn / Kewarganegaraan (flag)</option>
+                                <option value="palette">🎨 Seni Budaya (palette)</option>
+                                <option value="sports_soccer">⚽ PJOK / Olahraga (sports_soccer)</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
@@ -1338,6 +1411,19 @@
             }
         }
 
+        function previewSubjectIcon(input, previewId, imgId) {
+            const previewBox = document.getElementById(previewId);
+            const img = document.getElementById(imgId);
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    img.src = e.target.result;
+                    previewBox.classList.remove('hidden');
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
         function editSubject(subject) {
             document.getElementById('edit_subj_title').value = subject.title;
             document.getElementById('edit_subj_grade').value = subject.grade;
@@ -1345,6 +1431,23 @@
             document.getElementById('edit_subj_max_viol').value = subject.max_violations || 3;
             document.getElementById('edit_subj_remedy').value = subject.remedy_code || ('REMEDI' + subject.grade);
             document.getElementById('edit_subj_desc').value = subject.description || '';
+
+            // Handle icon preview / preset
+            const iconFile = document.getElementById('edit_subj_icon_file');
+            if (iconFile) iconFile.value = '';
+            const previewBox = document.getElementById('edit_subj_icon_preview');
+            const previewImg = document.getElementById('edit_subj_icon_img');
+            const iconSelect = document.getElementById('edit_subj_icon_name');
+
+            if (subject.icon_name && (subject.icon_name.includes('/') || subject.icon_name.includes('.'))) {
+                previewImg.src = subject.icon_name;
+                previewBox.classList.remove('hidden');
+            } else {
+                previewBox.classList.add('hidden');
+                if (subject.icon_name && iconSelect) {
+                    iconSelect.value = subject.icon_name;
+                }
+            }
 
             const form = document.getElementById('formEditSubject');
             form.action = `/admin/subjects/${subject.id}`;

@@ -89,9 +89,13 @@ class AdminController extends Controller
             'remedy_code'      => 'required|string|max:50',
             'description'      => 'nullable|string',
             'icon_name'        => 'nullable|string',
+            'icon_file'        => 'nullable|image|max:5120',
         ]);
 
-        if (empty($validated['icon_name'])) {
+        if ($request->hasFile('icon_file')) {
+            $path = $request->file('icon_file')->store('subjects', 'public');
+            $validated['icon_name'] = Storage::url($path);
+        } elseif (empty($validated['icon_name'])) {
             $validated['icon_name'] = 'school';
         }
 
@@ -122,7 +126,18 @@ class AdminController extends Controller
             'remedy_code'      => 'required|string|max:50',
             'description'      => 'nullable|string',
             'icon_name'        => 'nullable|string',
+            'icon_file'        => 'nullable|image|max:5120',
         ]);
+
+        if ($request->hasFile('icon_file')) {
+            // Delete old custom file if it exists in public storage
+            if ($subject->icon_name && str_starts_with($subject->icon_name, '/storage/subjects/')) {
+                $oldPath = str_replace('/storage/', '', $subject->icon_name);
+                Storage::disk('public')->delete($oldPath);
+            }
+            $path = $request->file('icon_file')->store('subjects', 'public');
+            $validated['icon_name'] = Storage::url($path);
+        }
 
         $subject->update($validated);
 

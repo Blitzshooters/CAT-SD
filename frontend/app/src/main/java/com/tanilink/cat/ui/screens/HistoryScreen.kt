@@ -1,5 +1,6 @@
 package com.tanilink.cat.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -373,60 +374,103 @@ fun HistoryScreen(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                            Spacer(modifier = Modifier.height(10.dp))
 
-                            // Stats Pills Breakdown & Pembahasan Action
+                            // 1. Stats Breakdown Grid: Benar, Salah, Kosong, Waktu
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        StatChip(label = "Benar", value = "${result.correctCount}", color = Color(0xFF16A34A))
-                                        StatChip(label = "Salah", value = "${result.wrongCount}", color = Color(0xFFDC2626))
-                                        StatChip(label = "Kosong", value = "${result.unansweredCount}", color = Color(0xFFD97706))
-                                    }
-                                    Spacer(modifier = Modifier.height(3.dp))
-                                    Text(
-                                        text = "⏱ $timeStr",
-                                        fontSize = 10.sp,
-                                        color = Color(0xFF2563EB),
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
+                                StatChip(
+                                    label = "Benar",
+                                    value = "${result.correctCount}",
+                                    color = Color(0xFF16A34A),
+                                    bgColor = Color(0xFFDCFCE7),
+                                    modifier = Modifier.weight(1f)
+                                )
+                                StatChip(
+                                    label = "Salah",
+                                    value = "${result.wrongCount}",
+                                    color = Color(0xFFDC2626),
+                                    bgColor = Color(0xFFFEE2E2),
+                                    modifier = Modifier.weight(1f)
+                                )
+                                StatChip(
+                                    label = "Kosong",
+                                    value = "${result.unansweredCount}",
+                                    color = Color(0xFFD97706),
+                                    bgColor = Color(0xFFFEF3C7),
+                                    modifier = Modifier.weight(1f)
+                                )
+                                StatChip(
+                                    label = "Waktu",
+                                    value = timeStr,
+                                    color = Color(0xFF2563EB),
+                                    bgColor = Color(0xFFEFF6FF),
+                                    modifier = Modifier.weight(1.15f)
+                                )
+                            }
 
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    if (isAdmin && onDeleteResult != null) {
-                                        IconButton(
-                                            onClick = { onDeleteResult(result) },
-                                            modifier = Modifier.size(28.dp)
-                                        ) {
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // 2. Action Buttons: Tombol Sampah (Admin) & Tombol Pembahasan
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (isAdmin && onDeleteResult != null) {
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = Color(0xFFFEE2E2),
+                                        border = BorderStroke(1.dp, Color(0xFFFECACA)),
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .clickable { onDeleteResult(result) }
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
                                             Icon(
                                                 imageVector = Icons.Default.Delete,
                                                 contentDescription = "Hapus Riwayat Ujian",
                                                 tint = Color(0xFFDC2626),
-                                                modifier = Modifier.size(16.dp)
+                                                modifier = Modifier.size(18.dp)
                                             )
                                         }
-                                        Spacer(modifier = Modifier.width(2.dp))
                                     }
+                                }
 
-                                    FilledTonalButton(
-                                        onClick = { onOpenReview(result) },
-                                        shape = RoundedCornerShape(8.dp),
-                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                                        modifier = Modifier.height(28.dp)
-                                    ) {
-                                        Text("Pembahasan", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                        Spacer(modifier = Modifier.width(3.dp))
-                                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(12.dp))
-                                    }
+                                FilledTonalButton(
+                                    onClick = { onOpenReview(result) },
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = ButtonDefaults.filledTonalButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                    ),
+                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.MenuBook,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Lihat Pembahasan",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp)
+                                    )
                                 }
                             }
                         }
@@ -452,17 +496,38 @@ fun HeaderStatItem(title: String, value: String, icon: ImageVector) {
 }
 
 @Composable
-fun StatChip(label: String, value: String, color: Color) {
+fun StatChip(
+    label: String,
+    value: String,
+    color: Color,
+    bgColor: Color = color.copy(alpha = 0.1f),
+    modifier: Modifier = Modifier
+) {
     Surface(
-        shape = RoundedCornerShape(6.dp),
-        color = color.copy(alpha = 0.08f)
+        shape = RoundedCornerShape(8.dp),
+        color = bgColor,
+        modifier = modifier
     ) {
-        Text(
-            text = "$label: $value",
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            color = color
-        )
+        Column(
+            modifier = Modifier.padding(vertical = 5.dp, horizontal = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = value,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Black,
+                color = color,
+                maxLines = 1
+            )
+            Spacer(modifier = Modifier.height(1.dp))
+            Text(
+                text = label,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = color.copy(alpha = 0.85f),
+                maxLines = 1
+            )
+        }
     }
 }
