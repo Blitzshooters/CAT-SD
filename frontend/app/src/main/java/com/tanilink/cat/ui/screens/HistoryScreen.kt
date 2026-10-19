@@ -1,9 +1,9 @@
 package com.tanilink.cat.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,7 +21,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.tanilink.cat.data.SampleData
 import com.tanilink.cat.model.ExamResult
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -36,16 +35,9 @@ fun HistoryScreen(
     onDeleteResult: ((ExamResult) -> Unit)? = null,
     onClearAllHistory: (() -> Unit)? = null
 ) {
-    var selectedFilterSubject by remember { mutableStateOf("ALL") }
     var showClearConfirmDialog by remember { mutableStateOf(false) }
 
-    val filteredHistory = remember(examHistory, selectedFilterSubject) {
-        if (selectedFilterSubject == "ALL") {
-            examHistory
-        } else {
-            examHistory.filter { it.subjectId == selectedFilterSubject }
-        }
-    }
+    val filteredHistory = examHistory
 
     val totalExams = examHistory.size
     val avgScore = if (totalExams > 0) examHistory.map { it.score }.average().toInt() else 0
@@ -228,46 +220,7 @@ fun HistoryScreen(
                     }
                 }
 
-                // Filter Subject Row
-                item {
-                    Column {
-                        Text(
-                            text = "Filter Mata Pelajaran:",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
 
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            item {
-                                FilterChip(
-                                    selected = selectedFilterSubject == "ALL",
-                                    onClick = { selectedFilterSubject = "ALL" },
-                                    label = { Text("Semua Mapel", fontWeight = FontWeight.Bold) },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                        selectedLabelColor = Color.White
-                                    ),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                            }
-
-                            items(SampleData.subjects) { sub ->
-                                FilterChip(
-                                    selected = selectedFilterSubject == sub.id,
-                                    onClick = { selectedFilterSubject = sub.id },
-                                    label = { Text(sub.title, fontWeight = FontWeight.SemiBold) },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = sub.primaryColor,
-                                        selectedLabelColor = Color.White
-                                    ),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                            }
-                        }
-                    }
-                }
 
                 item {
                     Row(
@@ -291,15 +244,28 @@ fun HistoryScreen(
 
                 // List of History Cards
                 items(filteredHistory) { result ->
-                    val subject = SampleData.subjects.find { it.id == result.subjectId }
-                    val subjectColor = subject?.primaryColor ?: MaterialTheme.colorScheme.primary
-                    val subjectSecondary = subject?.secondaryColor ?: MaterialTheme.colorScheme.primaryContainer
+                    // Derive color palette from subjectId hash (consistent per subject)
+                    val colorIndex = kotlin.math.abs(result.subjectId.hashCode()) % 4
+                    val subjectColor = when (colorIndex) {
+                        0 -> Color(0xFF4F46E5)
+                        1 -> Color(0xFF0284C7)
+                        2 -> Color(0xFF16A34A)
+                        else -> Color(0xFFDC2626)
+                    }
+                    val subjectSecondary = when (colorIndex) {
+                        0 -> Color(0xFFEEF2FF)
+                        1 -> Color(0xFFE0F2FE)
+                        2 -> Color(0xFFDCFCE7)
+                        else -> Color(0xFFFEE2E2)
+                    }
 
-                    val icon = when (subject?.iconName) {
-                        "Calculate" -> Icons.Default.Calculate
-                        "Science" -> Icons.Default.Science
-                        "MenuBook" -> Icons.Default.MenuBook
-                        else -> Icons.Default.Security
+                    val icon = when {
+                        result.subjectTitle.contains("Matematika", ignoreCase = true) -> Icons.Default.Calculate
+                        result.subjectTitle.contains("IPA", ignoreCase = true) ||
+                        result.subjectTitle.contains("Sains", ignoreCase = true) -> Icons.Default.Science
+                        result.subjectTitle.contains("Bahasa", ignoreCase = true) ||
+                        result.subjectTitle.contains("IPS", ignoreCase = true) -> Icons.Default.MenuBook
+                        else -> Icons.Default.School
                     }
 
                     val starCount = when {
@@ -316,43 +282,45 @@ fun HistoryScreen(
                     val timeStr = "${minutes}m ${seconds}s"
 
                     Card(
-                        shape = RoundedCornerShape(20.dp),
+                        shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onOpenReview(result) }
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(14.dp)) {
                             // Card Top Header
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Surface(
-                                    shape = RoundedCornerShape(14.dp),
+                                    shape = RoundedCornerShape(12.dp),
                                     color = subjectSecondary,
-                                    modifier = Modifier.size(48.dp)
+                                    modifier = Modifier.size(40.dp)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
                                             imageVector = icon,
                                             contentDescription = null,
                                             tint = subjectColor,
-                                            modifier = Modifier.size(26.dp)
+                                            modifier = Modifier.size(22.dp)
                                         )
                                     }
                                 }
 
-                                Spacer(modifier = Modifier.width(12.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
 
                                 Column(modifier = Modifier.weight(1f)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(
                                             text = result.subjectTitle,
-                                            fontSize = 16.sp,
+                                            fontSize = 15.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
-                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
                                         Surface(
                                             shape = RoundedCornerShape(6.dp),
                                             color = MaterialTheme.colorScheme.surfaceVariant
@@ -377,13 +345,13 @@ fun HistoryScreen(
                                 // Score Pill + Star Rating
                                 Column(horizontalAlignment = Alignment.End) {
                                     Surface(
-                                        shape = RoundedCornerShape(12.dp),
+                                        shape = RoundedCornerShape(10.dp),
                                         color = if (result.score >= 70) Color(0xFFDCFCE7) else Color(0xFFFEE2E2)
                                     ) {
                                         Text(
                                             text = "${result.score}",
-                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                                            fontSize = 16.sp,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
+                                            fontSize = 15.sp,
                                             fontWeight = FontWeight.Black,
                                             color = if (result.score >= 70) Color(0xFF166534) else Color(0xFF991B1B)
                                         )
@@ -398,55 +366,66 @@ fun HistoryScreen(
                                                 imageVector = if (i <= starCount) Icons.Default.Star else Icons.Default.StarBorder,
                                                 contentDescription = null,
                                                 tint = if (i <= starCount) Color(0xFFFFD700) else Color(0xFFCBD5E1),
-                                                modifier = Modifier.size(14.dp)
+                                                modifier = Modifier.size(13.dp)
                                             )
                                         }
                                     }
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(12.dp))
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline)
-                            Spacer(modifier = Modifier.height(10.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                            Spacer(modifier = Modifier.height(8.dp))
 
-                            // Stats Pills Breakdown
+                            // Stats Pills Breakdown & Pembahasan Action
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    StatChip(label = "Benar", value = "${result.correctCount}", color = Color(0xFF16A34A))
-                                    StatChip(label = "Salah", value = "${result.wrongCount}", color = Color(0xFFDC2626))
-                                    StatChip(label = "Kosong", value = "${result.unansweredCount}", color = Color(0xFFD97706))
-                                    StatChip(label = "Waktu", value = timeStr, color = Color(0xFF2563EB))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        StatChip(label = "Benar", value = "${result.correctCount}", color = Color(0xFF16A34A))
+                                        StatChip(label = "Salah", value = "${result.wrongCount}", color = Color(0xFFDC2626))
+                                        StatChip(label = "Kosong", value = "${result.unansweredCount}", color = Color(0xFFD97706))
+                                    }
+                                    Spacer(modifier = Modifier.height(3.dp))
+                                    Text(
+                                        text = "⏱ $timeStr",
+                                        fontSize = 10.sp,
+                                        color = Color(0xFF2563EB),
+                                        fontWeight = FontWeight.Medium
+                                    )
                                 }
 
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     if (isAdmin && onDeleteResult != null) {
                                         IconButton(
                                             onClick = { onDeleteResult(result) },
-                                            modifier = Modifier.size(34.dp)
+                                            modifier = Modifier.size(28.dp)
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Delete,
                                                 contentDescription = "Hapus Riwayat Ujian",
                                                 tint = Color(0xFFDC2626),
-                                                modifier = Modifier.size(18.dp)
+                                                modifier = Modifier.size(16.dp)
                                             )
                                         }
-                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Spacer(modifier = Modifier.width(2.dp))
                                     }
 
-                                    Button(
+                                    FilledTonalButton(
                                         onClick = { onOpenReview(result) },
-                                        colors = ButtonDefaults.buttonColors(containerColor = subjectColor),
-                                        shape = RoundedCornerShape(10.dp),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                        shape = RoundedCornerShape(8.dp),
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                        modifier = Modifier.height(28.dp)
                                     ) {
-                                        Text("Pembahasan", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
+                                        Text("Pembahasan", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        Spacer(modifier = Modifier.width(3.dp))
+                                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(12.dp))
                                     }
                                 }
                             }
@@ -475,13 +454,13 @@ fun HeaderStatItem(title: String, value: String, icon: ImageVector) {
 @Composable
 fun StatChip(label: String, value: String, color: Color) {
     Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = color.copy(alpha = 0.1f)
+        shape = RoundedCornerShape(6.dp),
+        color = color.copy(alpha = 0.08f)
     ) {
         Text(
             text = "$label: $value",
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            fontSize = 11.sp,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+            fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
             color = color
         )

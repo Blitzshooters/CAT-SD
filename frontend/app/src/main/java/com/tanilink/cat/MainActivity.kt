@@ -107,6 +107,7 @@ fun CatAppNavigation(viewModel: ExamViewModel) {
     val violationCount by viewModel.violationCount.collectAsState()
     val isAdmin by viewModel.isAdmin.collectAsState()
     val backendSubjects by viewModel.backendSubjects.collectAsState()
+    val isSubjectsLoading by viewModel.isSubjectsLoading.collectAsState()
     val isExamLocked by viewModel.isExamLocked.collectAsState()
     val lockReason by viewModel.lockReason.collectAsState()
     val remedyError by viewModel.remedyError.collectAsState()
@@ -186,6 +187,7 @@ fun CatAppNavigation(viewModel: ExamViewModel) {
                                 customAvatarUrl = customAvatarUrl,
                                 examHistory = examHistory,
                                 subjects = backendSubjects,
+                                isSubjectsLoading = isSubjectsLoading,
                                 isAdmin = isAdmin,
                                 onSelectGrade = { grade ->
                                     viewModel.selectGrade(grade)

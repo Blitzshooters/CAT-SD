@@ -29,6 +29,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import kotlin.math.roundToInt
+import androidx.activity.compose.BackHandler
 import com.tanilink.cat.model.ExamSubject
 import com.tanilink.cat.model.ProctorPosition
 import com.tanilink.cat.model.Question
@@ -68,9 +69,15 @@ fun ExamScreen(
 ) {
     var showGridSheet by remember { mutableStateOf(false) }
     var showSubmitDialog by remember { mutableStateOf(false) }
+    var showExitConfirmDialog by remember { mutableStateOf(false) }
     var showProctoringLogSheet by remember { mutableStateOf(false) }
     var proctorPosition by remember { mutableStateOf(ProctorPosition.TOP_RIGHT) }
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
+
+    // Intercept hardware/system back button to prevent accidental exit
+    BackHandler {
+        showExitConfirmDialog = true
+    }
 
     val currentQuestion = questions.getOrNull(currentIndex)
     val selectedOptionIndex = userAnswers[currentIndex]
@@ -109,8 +116,8 @@ fun ExamScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        IconButton(onClick = onCancelExam) {
-                            Icon(Icons.Default.Close, contentDescription = "Batal Ujian", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        IconButton(onClick = { showExitConfirmDialog = true }) {
+                            Icon(Icons.Default.Close, contentDescription = "Keluar Ujian", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -459,7 +466,11 @@ fun ExamScreen(
                                     lineHeight = 26.sp
                                 )
 
-                                if (!currentQuestion.imageUrl.isNullOrBlank()) {
+                                val hasValidImage = !currentQuestion.imageUrl.isNullOrBlank() &&
+                                        !currentQuestion.imageUrl.equals("null", ignoreCase = true) &&
+                                        !currentQuestion.imageUrl.endsWith("/null")
+
+                                if (hasValidImage) {
                                     Spacer(modifier = Modifier.height(12.dp))
                                     CatImage(
                                         imageUrl = currentQuestion.imageUrl,
@@ -867,6 +878,102 @@ fun ExamScreen(
                     Text("Lanjutkan Ujian")
                 }
             }
+        )
+    }
+
+    if (showExitConfirmDialog) {
+        val totalAnswered = userAnswers.size
+        val totalQuestions = questions.size
+
+        AlertDialog(
+            onDismissRequest = { showExitConfirmDialog = false },
+            icon = {
+                Surface(
+                    shape = CircleShape,
+                    color = Color(0xFFFEF2F2),
+                    modifier = Modifier.size(52.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.WarningAmber,
+                            contentDescription = null,
+                            tint = Color(0xFFDC2626),
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                }
+            },
+            title = {
+                Text(
+                    text = "Konfirmasi Keluar Ujian",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    textAlign = TextAlign.Center
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Ujian sedang berlangsung! Demi mencegah kecurangan, siswa tidak diizinkan keluar tanpa menyelesaikan ujian.",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Progress Pengerjaan:", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                            Text(
+                                "$totalAnswered / $totalQuestions Soal",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (totalAnswered == totalQuestions) Color(0xFF16A34A) else Color(0xFFD97706)
+                            )
+                        }
+                    }
+                    Text(
+                        text = "Kamu dapat menyelesaikan ujian sekarang untuk merekap nilai jawabanmu, atau kembali melanjutkan pengerjaan.",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            },
+            confirmButton = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            showExitConfirmDialog = false
+                            onSubmitExam()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Selesaikan & Kumpulkan Ujian", fontWeight = FontWeight.Bold)
+                    }
+
+                    OutlinedButton(
+                        onClick = { showExitConfirmDialog = false },
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Lanjutkan Mengerjakan Ujian", fontWeight = FontWeight.Bold)
+                    }
+                }
+            },
+            dismissButton = null
         )
     }
 

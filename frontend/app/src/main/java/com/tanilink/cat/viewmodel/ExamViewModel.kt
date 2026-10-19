@@ -114,6 +114,9 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
     private val _backendSubjects = MutableStateFlow<List<ExamSubject>>(emptyList())
     val backendSubjects: StateFlow<List<ExamSubject>> = _backendSubjects.asStateFlow()
 
+    private val _isSubjectsLoading = MutableStateFlow(true)
+    val isSubjectsLoading: StateFlow<Boolean> = _isSubjectsLoading.asStateFlow()
+
     private var timerJob: Job? = null
     private var lastAnswerTimeMs = 0L
 
@@ -149,12 +152,14 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
 
     fun fetchSubjectsFromBackend(grade: Int = _selectedGrade.value) {
         viewModelScope.launch {
+            _isSubjectsLoading.value = true
             val remoteSubjects = CatApiClient.getSubjects(grade)
             if (!remoteSubjects.isNullOrEmpty()) {
                 _backendSubjects.value = remoteSubjects
             } else {
-                _backendSubjects.value = SampleData.subjects.map { it.copy(gradeLevel = grade, remedyCode = "REMEDI$grade") }
+                _backendSubjects.value = emptyList()
             }
+            _isSubjectsLoading.value = false
         }
     }
 
@@ -225,6 +230,7 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
             .apply()
 
         loadHistoryFromDatabase()
+        fetchSubjectsFromBackend(_selectedGrade.value)
     }
 
     fun logout() {

@@ -24,8 +24,8 @@ fun CatImage(
     modifier: Modifier = Modifier,
     maxHeight: Dp? = null
 ) {
-    // If URL is blank, don't show anything (no broken image icon, no empty space)
-    if (imageUrl.isNullOrBlank()) return
+    // If URL is blank or null representation, don't show anything (no loading spinner, no empty space)
+    if (imageUrl.isNullOrBlank() || imageUrl.equals("null", ignoreCase = true) || imageUrl.endsWith("/null")) return
 
     var bitmap by remember(imageUrl) { mutableStateOf<Bitmap?>(null) }
     var isLoading by remember(imageUrl) { mutableStateOf(true) }

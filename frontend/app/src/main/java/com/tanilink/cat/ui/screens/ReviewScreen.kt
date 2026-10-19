@@ -148,7 +148,11 @@ fun ReviewScreen(
                             lineHeight = 24.sp
                         )
 
-                        if (!question.imageUrl.isNullOrBlank()) {
+                        val hasValidImage = !question.imageUrl.isNullOrBlank() &&
+                                !question.imageUrl.equals("null", ignoreCase = true) &&
+                                !question.imageUrl.endsWith("/null")
+
+                        if (hasValidImage) {
                             Spacer(modifier = Modifier.height(10.dp))
                             CatImage(
                                 imageUrl = question.imageUrl,
@@ -159,7 +163,7 @@ fun ReviewScreen(
 
                         Spacer(modifier = Modifier.height(14.dp))
 
-                        val labels = listOf("A", "B", "C", "D")
+                        val labels = (0 until question.options.size).map { i -> ('A' + i).toString() }
                         question.options.forEachIndexed { optIdx, optText ->
                             val isThisCorrect = optIdx == question.correctAnswerIndex
                             val isThisUserChoice = optIdx == userAnswer

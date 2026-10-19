@@ -42,13 +42,14 @@ fun HomeScreen(
     customAvatarUrl: String = "",
     examHistory: List<ExamResult>,
     subjects: List<ExamSubject> = emptyList(),
+    isSubjectsLoading: Boolean = false,
     isAdmin: Boolean = false,
     onSelectGrade: (Int) -> Unit,
     onStartExam: (ExamSubject) -> Unit,
     onGoToProfile: () -> Unit,
     onRefresh: () -> Unit = {}
 ) {
-    val displaySubjects = if (subjects.isNotEmpty()) subjects else SampleData.subjects.map { it.copy(gradeLevel = selectedGrade) }
+    val displaySubjects = subjects
     var pendingSubjectForUnlock by remember { mutableStateOf<ExamSubject?>(null) }
     var unlockCodeInput by remember { mutableStateOf("") }
     var unlockErrorMsg by remember { mutableStateOf<String?>(null) }
@@ -208,45 +209,49 @@ fun HomeScreen(
                                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                Column(
                                     modifier = Modifier
-                                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                                        .fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = Color(0xFFFFD54F)
-                                    ) {
-                                        Text(
-                                            text = "Kelas $selectedGrade SD",
-                                            color = Color(0xFF1E293B),
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                        )
-                                    }
-                                    if (nomorInduk.isNotBlank()) {
-                                        Surface(
-                                            shape = RoundedCornerShape(8.dp),
-                                            color = Color.White.copy(alpha = 0.25f)
-                                        ) {
-                                            Text(
-                                                text = "NISN: $nomorInduk",
-                                                color = Color.White,
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                            )
-                                        }
-                                    }
                                     Text(
                                         text = "Tingkat Ujian Aktif",
-                                        color = Color.White.copy(alpha = 0.95f),
-                                        fontSize = 12.sp,
+                                        color = Color.White.copy(alpha = 0.85f),
+                                        fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium
                                     )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = Color(0xFFFFD54F)
+                                        ) {
+                                            Text(
+                                                text = "Kelas $selectedGrade SD",
+                                                color = Color(0xFF1E293B),
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                            )
+                                        }
+                                        if (nomorInduk.isNotBlank()) {
+                                            Surface(
+                                                shape = RoundedCornerShape(8.dp),
+                                                color = Color.White.copy(alpha = 0.25f)
+                                            ) {
+                                                Text(
+                                                    text = "NISN: $nomorInduk",
+                                                    color = Color.White,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -337,30 +342,166 @@ fun HomeScreen(
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    Text(
-                        text = "${displaySubjects.size} Mapel Ujian",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    when {
+                        isSubjectsLoading -> {
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                Text(
+                                    text = "Memuat...",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                        displaySubjects.isNotEmpty() -> {
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer
+                            ) {
+                                Text(
+                                    text = "${displaySubjects.size} Mapel",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                        else -> {
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = Color(0xFFFEE2E2)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CloudOff,
+                                        contentDescription = null,
+                                        tint = Color(0xFFDC2626),
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Tidak Tersambung",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFDC2626)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
-            // Subject Cards List
-            items(displaySubjects) { subject ->
-                val isCompleted = examHistory.any { it.subjectId == subject.id && it.grade == selectedGrade }
-                SubjectCard(
-                    subject = subject,
-                    isCompleted = isCompleted,
-                    onStartClick = {
-                        if (isCompleted) {
-                            pendingSubjectForUnlock = subject
-                            unlockCodeInput = ""
-                            unlockErrorMsg = null
-                        } else {
-                            onStartExam(subject)
+            // Subject Cards List, Loading State, or Disconnected State
+            if (isSubjectsLoading) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(36.dp),
+                                color = MaterialTheme.colorScheme.primary,
+                                strokeWidth = 3.dp
+                            )
+                            Text(
+                                text = "Memuat daftar mata pelajaran...",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
-                )
+                }
+            } else if (displaySubjects.isEmpty()) {
+                item {
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = Color(0xFFFEE2E2),
+                                modifier = Modifier.size(54.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.CloudOff,
+                                        contentDescription = null,
+                                        tint = Color(0xFFDC2626),
+                                        modifier = Modifier.size(30.dp)
+                                    )
+                                }
+                            }
+
+                            Text(
+                                text = "Terputus dari Server",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+
+                            Text(
+                                text = "Tidak dapat menampilkan daftar mata pelajaran karena koneksi ke server terputus. Pastikan server aktif lalu coba lagi.",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Button(
+                                onClick = { onRefresh() },
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4F46E5))
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Coba Sambungkan Ulang", fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                }
+            } else {
+                items(displaySubjects) { subject ->
+                    val isCompleted = examHistory.any { it.subjectId == subject.id && it.grade == selectedGrade }
+                    SubjectCard(
+                        subject = subject,
+                        isCompleted = isCompleted,
+                        onStartClick = {
+                            if (isCompleted) {
+                                pendingSubjectForUnlock = subject
+                                unlockCodeInput = ""
+                                unlockErrorMsg = null
+                            } else {
+                                onStartExam(subject)
+                            }
+                        }
+                    )
+                }
             }
 
             // Section Title: Riwayat Terakhir

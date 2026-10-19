@@ -46,7 +46,7 @@ object CatApiClient {
     // 127.0.0.1 for local tests or adb reverse tcp:8000 tcp:8000 (USB device)
     // 192.168.1.2 for direct Wi-Fi LAN connection
     private const val BASE_URL_LOCAL = "http://127.0.0.1:8000/api"
-    private const val BASE_URL_LAN = "http://10.82.198.105:8000/api"
+    private const val BASE_URL_LAN = "http://192.168.1.4:8000/api"
     private const val BASE_URL_EMULATOR = "http://10.0.2.2:8000/api"
 
     var currentBaseUrl = BASE_URL_LOCAL
@@ -187,14 +187,17 @@ object CatApiClient {
                             val optImagesJson = qObj.optJSONArray("option_images")
                             if (optImagesJson != null) {
                                 for (o in 0 until optImagesJson.length()) {
-                                    val img = optImagesJson.optString(o, "")
-                                    optImagesList.add(if (img.isNotEmpty()) resolveImageUrl(baseUrl, img) else null)
+                                    val imgRaw = if (!optImagesJson.isNull(o)) optImagesJson.optString(o, "").trim() else ""
+                                    val resolved = if (imgRaw.isNotBlank() && !imgRaw.equals("null", ignoreCase = true)) resolveImageUrl(baseUrl, imgRaw) else null
+                                    optImagesList.add(if (!resolved.isNullOrBlank()) resolved else null)
                                 }
                             } else {
                                 repeat(optionsList.size) { optImagesList.add(null) }
                             }
 
-                            val qImg = qObj.optString("question_image", "")
+                            val qImgRaw = if (!qObj.isNull("question_image")) qObj.optString("question_image", "").trim() else ""
+                            val resolvedQImg = if (qImgRaw.isNotBlank() && !qImgRaw.equals("null", ignoreCase = true)) resolveImageUrl(baseUrl, qImgRaw) else null
+                            val qImg = if (!resolvedQImg.isNullOrBlank() && !resolvedQImg.endsWith("/null")) resolvedQImg else null
 
                             list.add(
                                 Question(
@@ -205,7 +208,7 @@ object CatApiClient {
                                     explanation = qObj.optString("explanation", ""),
                                     subjectId = subjectId,
                                     gradeLevel = grade,
-                                    imageUrl = if (qImg.isNotEmpty()) resolveImageUrl(baseUrl, qImg) else null,
+                                    imageUrl = qImg,
                                     optionImages = optImagesList
                                 )
                             )
@@ -537,18 +540,19 @@ object CatApiClient {
         null
     }
 
-    fun resolveImageUrl(baseUrl: String, path: String): String {
-        if (path.isBlank()) return ""
+    fun resolveImageUrl(baseUrl: String, path: String?): String? {
+        if (path.isNullOrBlank() || path.equals("null", ignoreCase = true)) return null
         if (path.startsWith("data:")) return path
         if (path.startsWith("http://") || path.startsWith("https://")) return path
 
         val host = baseUrl.substringBefore("/api")
         val cleanPath = path.removePrefix("/")
+        if (cleanPath.isBlank() || cleanPath.equals("null", ignoreCase = true)) return null
         return "$host/$cleanPath"
     }
 
     suspend fun loadBitmap(urlOrBase64: String): Bitmap? = withContext(Dispatchers.IO) {
-        if (urlOrBase64.isBlank()) return@withContext null
+        if (urlOrBase64.isBlank() || urlOrBase64.equals("null", ignoreCase = true) || urlOrBase64.endsWith("/null")) return@withContext null
         try {
             if (urlOrBase64.startsWith("data:image")) {
                 val base64Data = urlOrBase64.substringAfter("base64,")
