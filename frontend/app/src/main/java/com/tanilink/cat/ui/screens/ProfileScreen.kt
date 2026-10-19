@@ -72,6 +72,8 @@ fun ProfileScreen(
             if (bitmap != null) {
                 customPhotoBitmap = bitmap
             }
+        } else {
+            customPhotoBitmap = null
         }
     }
 

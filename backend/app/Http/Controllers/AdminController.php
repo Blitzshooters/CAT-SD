@@ -52,15 +52,12 @@ class AdminController extends Controller
             'total_students'   => User::where('is_admin', false)->count(),
             'total_results'    => ExamResult::count(),
             'total_violations' => ProctoringLog::count(),
-            'total_snapshots'  => ProctoringSnapshot::count(),
         ];
 
         // All exam results taken by users (sorted latest first)
         $recentResults = ExamResult::with(['user', 'subject'])->latest()->get();
         // Violation logs with user info
         $recentViolations = ProctoringLog::with(['user', 'examResult.subject'])->latest()->limit(50)->get();
-        // Web camera snapshot captures
-        $recentSnapshots = ProctoringSnapshot::with('user')->latest()->limit(24)->get();
 
         // System settings
         $classChangeCode = AppSetting::get('class_change_code', 'unpkediri');
@@ -72,7 +69,6 @@ class AdminController extends Controller
             'stats',
             'recentResults',
             'recentViolations',
-            'recentSnapshots',
             'classChangeCode',
             'grade',
             'users',
@@ -158,33 +154,72 @@ class AdminController extends Controller
     }
 
     /**
-     * Store Question with optional images for prompt and options
+     * Helper to parse dynamic question options and their optional images
+     */
+    private function parseOptionsAndImages(Request $request, ?Question $existingQuestion = null): array
+    {
+        $options = [];
+        $optionImages = [];
+
+        if ($request->has('options') && is_array($request->input('options'))) {
+            foreach ($request->input('options') as $idx => $optText) {
+                if (trim((string)$optText) !== '') {
+                    $options[] = trim((string)$optText);
+                }
+            }
+        } else {
+            $i = 0;
+            while ($request->has("option_$i")) {
+                $val = trim((string)$request->input("option_$i"));
+                if ($val !== '') {
+                    $options[] = $val;
+                }
+                $i++;
+            }
+        }
+
+        if (count($options) < 2) {
+            $options = ['Pilihan A', 'Pilihan B'];
+        }
+
+        $existingImages = $existingQuestion?->option_images ?: [];
+
+        foreach ($options as $idx => $opt) {
+            $img = $existingImages[$idx] ?? null;
+
+            if ($request->hasFile("opt_image_file_$idx")) {
+                $path = $request->file("opt_image_file_$idx")->store('options', 'public');
+                $img = Storage::url($path);
+            } elseif ($request->filled("opt_image_url_$idx")) {
+                $img = $request->input("opt_image_url_$idx");
+            }
+
+            $optionImages[] = $img;
+        }
+
+        return [$options, $optionImages];
+    }
+
+    /**
+     * Store Question with dynamic options and optional images
      */
     public function storeQuestion(Request $request)
     {
         $validated = $request->validate([
             'subject_id'           => 'required|exists:subjects,id',
             'prompt'               => 'required|string',
-            'correct_answer_index' => 'required|integer|min:0|max:3',
+            'correct_answer_index' => 'required|integer|min:0',
             'explanation'          => 'nullable|string',
-            'option_0'             => 'required|string',
-            'option_1'             => 'required|string',
-            'option_2'             => 'required|string',
-            'option_3'             => 'required|string',
             'question_image_file'  => 'nullable|image|max:5120',
             'question_image_url'   => 'nullable|string',
-            'opt_image_file_0'     => 'nullable|image|max:5120',
-            'opt_image_file_1'     => 'nullable|image|max:5120',
-            'opt_image_file_2'     => 'nullable|image|max:5120',
-            'opt_image_file_3'     => 'nullable|image|max:5120',
         ]);
 
-        $options = [
-            $request->input('option_0'),
-            $request->input('option_1'),
-            $request->input('option_2'),
-            $request->input('option_3'),
-        ];
+        [$options, $optionImages] = $this->parseOptionsAndImages($request);
+
+        $correctIndex = (int)$validated['correct_answer_index'];
+        if ($correctIndex >= count($options)) {
+            $correctIndex = 0;
+        }
 
         // Process question image
         $questionImage = null;
@@ -195,24 +230,13 @@ class AdminController extends Controller
             $questionImage = $validated['question_image_url'];
         }
 
-        // Process option images
-        $optionImages = [null, null, null, null];
-        for ($i = 0; $i < 4; $i++) {
-            if ($request->hasFile("opt_image_file_$i")) {
-                $path = $request->file("opt_image_file_$i")->store('options', 'public');
-                $optionImages[$i] = Storage::url($path);
-            } elseif ($request->filled("opt_image_url_$i")) {
-                $optionImages[$i] = $request->input("opt_image_url_$i");
-            }
-        }
-
         $question = Question::create([
             'subject_id'           => $validated['subject_id'],
             'prompt'               => $validated['prompt'],
             'question_image'       => $questionImage,
             'options'              => $options,
             'option_images'        => $optionImages,
-            'correct_answer_index' => (int)$validated['correct_answer_index'],
+            'correct_answer_index' => $correctIndex,
             'explanation'          => $validated['explanation'] ?? '',
         ]);
 
@@ -224,7 +248,7 @@ class AdminController extends Controller
         return redirect()->route('admin.dashboard', [
             'grade' => $subject?->grade,
             'subject_id' => $validated['subject_id']
-        ])->with('success', 'Soal baru berhasil ditambahkan!');
+        ])->with('success', 'Soal baru berhasil ditambahkan (' . count($options) . ' pilihan jawaban)!');
     }
 
     /**
@@ -236,22 +260,18 @@ class AdminController extends Controller
 
         $validated = $request->validate([
             'prompt'               => 'required|string',
-            'correct_answer_index' => 'required|integer|min:0|max:3',
+            'correct_answer_index' => 'required|integer|min:0',
             'explanation'          => 'nullable|string',
-            'option_0'             => 'required|string',
-            'option_1'             => 'required|string',
-            'option_2'             => 'required|string',
-            'option_3'             => 'required|string',
             'question_image_file'  => 'nullable|image|max:5120',
             'question_image_url'   => 'nullable|string',
         ]);
 
-        $options = [
-            $request->input('option_0'),
-            $request->input('option_1'),
-            $request->input('option_2'),
-            $request->input('option_3'),
-        ];
+        [$options, $optionImages] = $this->parseOptionsAndImages($request, $question);
+
+        $correctIndex = (int)$validated['correct_answer_index'];
+        if ($correctIndex >= count($options)) {
+            $correctIndex = 0;
+        }
 
         $questionImage = $question->question_image;
         if ($request->hasFile('question_image_file')) {
@@ -261,22 +281,12 @@ class AdminController extends Controller
             $questionImage = $request->input('question_image_url');
         }
 
-        $optionImages = $question->option_images ?: [null, null, null, null];
-        for ($i = 0; $i < 4; $i++) {
-            if ($request->hasFile("opt_image_file_$i")) {
-                $path = $request->file("opt_image_file_$i")->store('options', 'public');
-                $optionImages[$i] = Storage::url($path);
-            } elseif ($request->filled("opt_image_url_$i")) {
-                $optionImages[$i] = $request->input("opt_image_url_$i");
-            }
-        }
-
         $question->update([
             'prompt'               => $validated['prompt'],
             'question_image'       => $questionImage,
             'options'              => $options,
             'option_images'        => $optionImages,
-            'correct_answer_index' => (int)$validated['correct_answer_index'],
+            'correct_answer_index' => $correctIndex,
             'explanation'          => $validated['explanation'] ?? '',
         ]);
 
@@ -288,7 +298,7 @@ class AdminController extends Controller
         return redirect()->route('admin.dashboard', [
             'grade' => $subject?->grade,
             'subject_id' => $question->subject_id
-        ])->with('success', 'Soal berhasil diperbarui!');
+        ])->with('success', 'Soal berhasil diperbarui (' . count($options) . ' pilihan jawaban)!');
     }
 
     /**

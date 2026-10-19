@@ -477,7 +477,9 @@ fun ExamScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
-                        val labels = listOf("A", "B", "C", "D")
+                        val labels = (0 until currentQuestion.options.size).map { i ->
+                            ('A' + i).toString()
+                        }
                         currentQuestion.options.forEachIndexed { optIdx, optionText ->
                             val isSelected = selectedOptionIndex == optIdx
 
@@ -523,21 +525,19 @@ fun ExamScreen(
                                     Spacer(modifier = Modifier.width(14.dp))
 
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = optionText,
-                                            fontSize = 15.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-
                                         val optImg = currentQuestion.optionImages?.getOrNull(optIdx)
                                         if (!optImg.isNullOrBlank()) {
-                                            Spacer(modifier = Modifier.height(8.dp))
                                             CatImage(
                                                 imageUrl = optImg,
                                                 contentDescription = "Gambar Opsi ${labels.getOrElse(optIdx) { "" }}",
-                                                maxHeight = 110.dp,
                                                 modifier = Modifier.fillMaxWidth()
+                                            )
+                                        } else {
+                                            Text(
+                                                text = optionText,
+                                                fontSize = 15.sp,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                color = MaterialTheme.colorScheme.onSurface
                                             )
                                         }
                                     }
@@ -630,6 +630,34 @@ fun ExamScreen(
                     }
                 }
             }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.padding(24.dp)
+                ) {
+                    CircularProgressIndicator(color = subject.primaryColor)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Memuat soal ujian dari server...",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Harap tunggu sebentar selagi soal dipersiapkan",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
     }
 
@@ -644,7 +672,7 @@ fun ExamScreen(
                     .padding(20.dp)
             ) {
                 Text(
-                    text = "Navigasi 20 Nomor Soal",
+                    text = "Navigasi ${questions.size} Nomor Soal",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface

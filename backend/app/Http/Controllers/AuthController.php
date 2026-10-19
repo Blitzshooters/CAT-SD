@@ -56,15 +56,7 @@ class AuthController extends Controller
             'token'   => $token,
             'token_type' => 'bearer',
             'expires_in' => config('jwt.ttl') * 60,
-            'user'    => [
-                'id'          => $user->id,
-                'name'        => $user->name,
-                'username'    => $user->username,
-                'nomor_induk' => $user->nomor_induk,
-                'grade'       => $user->grade,
-                'avatar'      => $user->avatar,
-                'is_admin'    => (bool)$user->is_admin,
-            ],
+            'user'    => $this->formatUserResponse($user, $request),
         ]);
     }
 
@@ -77,16 +69,30 @@ class AuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'user'    => [
-                'id'          => $user->id,
-                'name'        => $user->name,
-                'username'    => $user->username,
-                'nomor_induk' => $user->nomor_induk,
-                'grade'       => $user->grade,
-                'avatar'      => $user->avatar,
-                'is_admin'    => (bool)$user->is_admin,
-            ],
+            'user'    => $this->formatUserResponse($user, $request),
         ]);
+    }
+
+    /**
+     * Helper to format user response data
+     */
+    private function formatUserResponse(User $user, Request $request): array
+    {
+        $avatar = $user->avatar;
+        if ($avatar && (str_starts_with($avatar, '/storage/') || str_starts_with($avatar, 'storage/'))) {
+            $clean = '/' . ltrim($avatar, '/');
+            $avatar = rtrim($request->getSchemeAndHttpHost(), '/') . $clean;
+        }
+
+        return [
+            'id'          => $user->id,
+            'name'        => $user->name,
+            'username'    => $user->username,
+            'nomor_induk' => $user->nomor_induk ?? '',
+            'grade'       => $user->grade,
+            'avatar'      => $avatar ?: 'rabbit',
+            'is_admin'    => (bool)$user->is_admin,
+        ];
     }
 
     /**
@@ -144,7 +150,10 @@ class AuthController extends Controller
             $user->name = $request->input('name');
         }
         if ($request->filled('avatar')) {
-            $user->avatar = $request->input('avatar');
+            $avatarInput = $request->input('avatar');
+            if ($avatarInput !== 'custom' || empty($user->avatar)) {
+                $user->avatar = $avatarInput;
+            }
         }
         if ($request->filled('grade')) {
             $user->grade = (int)$request->input('grade');
@@ -154,15 +163,7 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Profil berhasil diperbarui',
-            'user' => [
-                'id'          => $user->id,
-                'name'        => $user->name,
-                'username'    => $user->username,
-                'nomor_induk' => $user->nomor_induk,
-                'grade'       => $user->grade,
-                'avatar'      => $user->avatar,
-                'is_admin'    => (bool)$user->is_admin,
-            ]
+            'user'    => $this->formatUserResponse($user, $request),
         ]);
     }
 

@@ -1,113 +1,128 @@
-# CAT SD - Laravel Backend API
+# CAT SD - Laravel Backend API & Admin Web Portal
 
-Backend API untuk **Aplikasi CAT (Computer Assisted Test) SD** dengan autentikasi JWT, MySQL, dan logging AI Proctoring.
+Backend RESTful API dan Portal Manajemen Ujian untuk **Aplikasi CAT (Computer Assisted Test) SD** dengan autentikasi JWT, database MySQL, dan pemantauan AI Proctoring real-time.
 
 ---
 
 ## 🚀 Tech Stack
-- **Framework**: Laravel 10.x
+- **Framework**: Laravel 10.x (PHP 8.2+)
 - **Database**: MySQL 8.x
-- **Auth**: JWT (`tymon/jwt-auth`)
-- **Proctoring**: Log violations & snapshots dari Android client
+- **Authentication**: JWT (`tymon/jwt-auth`)
+- **Frontend Admin**: TailwindCSS, Alpine.js, FontAwesome 6
+- **Proctoring**: Real-time violation logging dari Android client
 
 ---
 
-## 👤 Akun Awal (Default)
+## 👤 Akun Bawaan (Default Seeder)
 
-| Nama       | Username  | Password    |
-|------------|-----------|-------------|
-| Zam Zam    | zamzam    | unpkediri   |
-| Yusuf      | yusuf     | unpkediri   |
-| Yehosyua   | yehosyua  | unpkediri   |
-| Cantika    | cantika   | unpkediri   |
+| Nama        | Username  | Nomor Induk / NISN   | Password    | Role          |
+|-------------|-----------|----------------------|-------------|---------------|
+| Admin Guru  | admin     | 198507152010011002   | unpkediri   | Guru / Admin  |
+| Zam Zam     | zamzam    | 2024001              | unpkediri   | Guru / Admin  |
+| Yusuf       | yusuf     | 2024002              | unpkediri   | Siswa (Kls 5) |
+| Yehosyua    | yehosyua  | 2024003              | unpkediri   | Siswa (Kls 5) |
+| Cantika     | cantika   | 2024004              | unpkediri   | Siswa (Kls 5) |
 
 ---
 
-## 📦 Instalasi
+## 📦 Panduan Instalasi
 
 ```bash
-# 1. Clone dan masuk ke folder backend
+# 1. Masuk ke direktori backend
 cd backend/
 
-# 2. Install dependencies
+# 2. Install dependencies Composer
 composer install
 
-# 3. Copy .env dan atur konfigurasi
+# 3. Salin file environment
 cp .env.example .env
-# Edit .env: DB_DATABASE=cat_sd, DB_USERNAME, DB_PASSWORD
 
-# 4. Generate App Key
+# 4. Generate App Key & JWT Secret
 php artisan key:generate
-
-# 5. Generate JWT Secret
 php artisan jwt:secret
 
-# 6. Buat database MySQL
+# 5. Buat database MySQL
 mysql -u root -p -e "CREATE DATABASE cat_sd CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
-# 7. Jalankan migration + seeder
+# 6. Jalankan migrasi dan seeder bank soal
 php artisan migrate --seed
 
+# 7. Hubungkan symlink storage publik
+php artisan storage:link
+
 # 8. Jalankan server lokal
-php artisan serve
+php artisan serve --host=0.0.0.0 --port=8000
 ```
 
-Server akan berjalan di: `http://127.0.0.1:8000`
+> **Akses Dashboard Web Pengawas:** Buka `http://localhost:8000/admin` pada browser.
 
 ---
 
 ## 🔑 API Endpoints
 
-### Auth
-| Method | Endpoint        | Deskripsi                    |
-|--------|-----------------|------------------------------|
-| POST   | /api/auth/login | Login, mendapatkan JWT token |
-| GET    | /api/auth/me    | Info user yang login         |
-| POST   | /api/auth/logout| Logout, invalidate token     |
+### 1. Autentikasi (`/api/auth`)
+| Method | Endpoint | Deskripsi |
+|---|---|---|
+| `POST` | `/api/auth/login` | Login siswa/guru via Username atau Nomor Induk |
+| `GET` | `/api/auth/me` | Informasi profil user yang sedang login (Bearer token) |
+| `POST` | `/api/auth/logout` | Invalidate JWT token |
+| `POST` | `/api/auth/refresh` | Refresh JWT token yang aktif |
 
-**Request Login:**
-```json
-{
-  "username": "zamzam",
-  "password": "unpkediri"
-}
-```
+### 2. Ujian & Bank Soal (`/api/exam`)
+| Method | Endpoint | Deskripsi |
+|---|---|---|
+| `GET` | `/api/subjects?grade={1-6}` | Daftar mata pelajaran per jenjang kelas |
+| `GET` | `/api/subjects/{id}/questions` | Butir soal lengkap (gambar, opsi, penjelasan) |
+| `POST` | `/api/exam/verify-remedy` | Verifikasi kode remedi untuk reset pelanggaran ujian |
+| `POST` | `/api/exam/submit` | Simpan hasil ujian siswa ke database |
+| `GET` | `/api/exam/history` | Riwayat hasil ujian siswa |
+| `GET` | `/api/class-code` | Ambil kode izin ganti kelas |
+| `POST` | `/api/class-code/verify` | Verifikasi kode izin ganti kelas siswa |
 
-### Exam
-| Method | Endpoint                              | Deskripsi                       |
-|--------|---------------------------------------|---------------------------------|
-| GET    | /api/subjects?grade=5                 | Daftar mata pelajaran per kelas |
-| GET    | /api/subjects/{id}/questions          | 20 soal acak per mata pelajaran |
-| POST   | /api/exam/submit                      | Submit hasil ujian              |
-| GET    | /api/exam/history                     | Riwayat ujian user              |
+### 3. AI Proctoring (`/api/proctoring`)
+| Method | Endpoint | Deskripsi |
+|---|---|---|
+| `POST` | `/api/proctoring/log` | Catat pelanggaran pengawasan dari Android client |
+| `GET` | `/api/proctoring/session/{examId}` | Ambil catatan log pelanggaran per sesi ujian |
 
-### AI Proctoring
-| Method | Endpoint                          | Deskripsi                      |
-|--------|-----------------------------------|--------------------------------|
-| POST   | /api/proctoring/log               | Log pelanggaran AI proctoring  |
-| POST   | /api/proctoring/snapshot          | Upload foto snapshot kamera    |
-| GET    | /api/proctoring/session/{examId}  | Log pelanggaran per sesi ujian |
+### 4. Profil Pengguna (`/api/user`)
+| Method | Endpoint | Deskripsi |
+|---|---|---|
+| `POST` | `/api/user/profile` | Perbarui nama, tingkat kelas, atau avatar |
+| `POST` | `/api/user/upload-avatar` | Unggah foto profil kustom (Base64) |
+| `POST` | `/api/user/change-password` | Ubah password akun siswa/guru |
 
 ---
 
 ## 🗄️ Database Schema
 
-- `users` - Akun siswa
-- `subjects` - Mata pelajaran per kelas
-- `questions` - Soal per mata pelajaran
-- `exam_results` - Hasil ujian siswa
-- `proctoring_logs` - Log pelanggaran AI proctoring
-- `proctoring_snapshots` - Foto snapshot kamera depan
+- `users` — Akun siswa dan guru (username, nomor_induk, password, avatar, is_admin)
+- `subjects` — Mata pelajaran per jenjang kelas (title, grade, duration_minutes, max_violations, remedy_code)
+- `questions` — Bank soal ujian (prompt, question_image, options, option_images, correct_answer_index, explanation)
+- `exam_results` — Hasil ujian siswa (skor, benar, salah, kosong, durasi pengerjaan)
+- `proctoring_logs` — Catatan pelanggaran AI proctoring
+- `app_settings` — Konfigurasi global sistem (kode penggantian kelas, dll.)
 
 ---
 
-## 🛡️ AI Proctoring Violation Types
+## 🛡️ Tipe Pelanggaran AI Proctoring
 
-| Type               | Keterangan                             |
-|--------------------|----------------------------------------|
-| `SWITCH_TAB`       | Pindah aplikasi/minimize saat ujian    |
-| `NO_FACE`          | Wajah tidak terdeteksi di kamera       |
-| `MULTIPLE_FACES`   | Lebih dari 1 wajah terdeteksi          |
-| `LOOKING_AWAY`     | Pandangan tidak ke kamera              |
-| `RAPID_ANSWERING`  | Jawaban terlalu cepat (< 2 detik)      |
-| `SNAPSHOT_CAPTURED`| Snapshot acak berhasil diambil (log)   |
+| Type | Keterangan |
+|---|---|
+| `SWITCH_TAB` | Siswa beralih aplikasi / keluar layar ujian |
+| `NO_FACE` | Wajah siswa tidak terdeteksi oleh kamera AI |
+| `MULTIPLE_FACES` | Terdeteksi lebih dari 1 orang di depan kamera |
+| `LOOKING_AWAY` | Siswa menoleh / pandangan berpaling dari layar |
+| `RAPID_ANSWERING` | Siswa menjawab terlalu kilat (< 2 detik) |
+
+---
+
+## 🗝️ Token Remedi per Kelas
+
+* **Kelas 1**: `REMEDI1`
+* **Kelas 2**: `REMEDI2`
+* **Kelas 3**: `REMEDI3`
+* **Kelas 4**: `REMEDI4`
+* **Kelas 5**: `REMEDI5`
+* **Kelas 6**: `REMEDI6`
+* **Kode Ganti Kelas**: `unpkediri`

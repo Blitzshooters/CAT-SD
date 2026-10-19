@@ -180,6 +180,7 @@ fun CatAppNavigation(viewModel: ExamViewModel) {
                         MainTab.EXAM_HOME -> {
                             HomeScreen(
                                 studentName = studentName,
+                                nomorInduk = nomorInduk,
                                 selectedGrade = selectedGrade,
                                 selectedAvatar = selectedAvatar,
                                 customAvatarUrl = customAvatarUrl,
@@ -309,6 +310,7 @@ fun CatAppNavigation(viewModel: ExamViewModel) {
                         ResultScreen(
                             result = result,
                             studentName = studentName,
+                            nomorInduk = nomorInduk,
                             onOpenReview = {
                                 viewModel.openReview()
                             },

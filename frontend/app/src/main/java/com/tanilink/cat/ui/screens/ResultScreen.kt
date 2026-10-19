@@ -26,6 +26,7 @@ import java.util.Locale
 fun ResultScreen(
     result: ExamResult,
     studentName: String,
+    nomorInduk: String = "",
     onOpenReview: () -> Unit,
     onBackToHome: () -> Unit
 ) {
@@ -95,6 +96,13 @@ fun ResultScreen(
                             color = Color.White.copy(alpha = 0.85f),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium
+                        )
+
+                        Text(
+                            text = if (nomorInduk.isNotBlank()) "$studentName • NISN: $nomorInduk" else studentName,
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
                         )
 
                         Spacer(modifier = Modifier.height(8.dp))

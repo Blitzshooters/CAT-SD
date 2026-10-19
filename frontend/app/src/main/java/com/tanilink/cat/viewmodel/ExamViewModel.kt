@@ -118,6 +118,7 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
     private var lastAnswerTimeMs = 0L
 
     init {
+        CatApiClient.cacheDir = getApplication<Application>().cacheDir
         val savedLoggedIn = prefs.getBoolean("is_logged_in", false)
         if (savedLoggedIn) {
             val savedName = prefs.getString("student_name", "Zam Zam") ?: "Zam Zam"
@@ -152,7 +153,7 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
             if (!remoteSubjects.isNullOrEmpty()) {
                 _backendSubjects.value = remoteSubjects
             } else {
-                _backendSubjects.value = SampleData.subjects.map { it.copy(gradeLevel = grade) }
+                _backendSubjects.value = SampleData.subjects.map { it.copy(gradeLevel = grade, remedyCode = "REMEDI$grade") }
             }
         }
     }
@@ -315,6 +316,13 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val (uploadedUrl, errorMessage) = CatApiClient.uploadAvatarBase64(username, base64Data)
             if (uploadedUrl != null) {
+                // Cache raw base64 bytes locally so image displays offline immediately
+                try {
+                    val rawBase64 = if (base64Data.contains("base64,")) base64Data.substringAfter("base64,") else base64Data
+                    val bytes = android.util.Base64.decode(rawBase64, android.util.Base64.DEFAULT)
+                    CatApiClient.saveCachedImage(uploadedUrl, bytes)
+                } catch (_: Exception) {}
+
                 _selectedAvatar.value = customAvatarUser()
                 _customAvatarUrl.value = uploadedUrl
                 prefs.edit()
@@ -336,14 +344,26 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     private fun resolveAvatar(serverAvatar: String, fallbackAvatar: UserAvatar): Pair<UserAvatar, String> {
-        if (serverAvatar.isBlank()) {
+        val raw = serverAvatar.trim()
+        if (raw.isBlank()) {
             return Pair(fallbackAvatar, "")
         }
-        if (serverAvatar.startsWith("http") ||
-            serverAvatar.startsWith("data:") ||
-            serverAvatar.startsWith("/storage")
-        ) {
-            return Pair(customAvatarUser(), serverAvatar)
+
+        val lower = raw.lowercase()
+        val isCustom = lower.startsWith("http://") ||
+                lower.startsWith("https://") ||
+                lower.startsWith("data:") ||
+                lower.startsWith("/storage") ||
+                lower.startsWith("storage/") ||
+                lower.startsWith("/avatars/") ||
+                lower.startsWith("avatars/") ||
+                lower.endsWith(".jpg") ||
+                lower.endsWith(".jpeg") ||
+                lower.endsWith(".png") ||
+                lower.endsWith(".webp")
+
+        if (isCustom) {
+            return Pair(customAvatarUser(), raw)
         }
 
         val presetMapping = mapOf(
@@ -353,7 +373,7 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
             "astronaut" to "av4",
             "champion" to "av5"
         )
-        val avatarId = presetMapping[serverAvatar] ?: serverAvatar
+        val avatarId = presetMapping[lower] ?: presetMapping[raw] ?: raw
         val presetAvatar = SampleData.avatars.find { it.id == avatarId } ?: fallbackAvatar
         return Pair(presetAvatar, "")
     }
@@ -389,9 +409,7 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
         _faceStatus.value = FaceStatus.OK
         _proctoringWarningText.value = "Fokus Terjaga"
 
-        // Load local fallback first
-        val fallback = SampleData.getQuestionsForSubjectAndGrade(subject.id, _selectedGrade.value)
-        _questions.value = fallback
+        _questions.value = emptyList()
 
         val totalSeconds = subject.durationMinutes * 60L
         _remainingSeconds.value = totalSeconds
@@ -401,7 +419,7 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
         _currentScreen.value = ScreenState.EXAM
         startTimer()
 
-        // Fetch latest questions from backend API if connected
+        // Fetch questions directly from backend API database
         viewModelScope.launch {
             val remoteQuestions = CatApiClient.getQuestions(subject.id, _selectedGrade.value)
             if (!remoteQuestions.isNullOrEmpty()) {
@@ -418,11 +436,6 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
                 if (!_isExamLocked.value) {
                     _remainingSeconds.update { it - 1 }
                     _elapsedTimeSeconds.update { it + 1 }
-
-                    // Periodic Snapshot simulation every 3 minutes
-                    if (_elapsedTimeSeconds.value > 0 && _elapsedTimeSeconds.value % 180L == 0L) {
-                        addProctoringViolation(ViolationType.SNAPSHOT_CAPTURED, "Snapshot acak kamera depan berhasil diambil.")
-                    }
                 }
             }
             if (_remainingSeconds.value <= 0 && _currentScreen.value == ScreenState.EXAM && !_isExamLocked.value) {
@@ -451,7 +464,7 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
         _remedyError.value = null
 
         viewModelScope.launch {
-            val localMatch = trimmed.equals(subject.remedyCode.trim(), ignoreCase = true)
+            val localMatch = subject.remedyCode.isNotBlank() && trimmed.equals(subject.remedyCode.trim(), ignoreCase = true)
             val remoteMatch = CatApiClient.verifyRemedyCode(subject.id, trimmed)
 
             if (localMatch || remoteMatch) {
@@ -459,7 +472,6 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
                 _isExamLocked.value = false
                 _lockReason.value = ""
                 _remedyError.value = null
-                addProctoringViolation(ViolationType.SNAPSHOT_CAPTURED, "Ujian dibuka kembali & pelanggaran direset oleh pengawas dengan kode '$trimmed'.")
                 resumeTimer()
             } else {
                 _remedyError.value = "Kode remedi salah! Silakan tanyakan kode yang benar kepada pengawas."

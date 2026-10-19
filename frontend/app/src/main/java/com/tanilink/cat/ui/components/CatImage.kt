@@ -5,10 +5,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,65 +22,60 @@ fun CatImage(
     imageUrl: String?,
     contentDescription: String? = null,
     modifier: Modifier = Modifier,
-    maxHeight: Dp = 180.dp
+    maxHeight: Dp? = null
 ) {
+    // If URL is blank, don't show anything (no broken image icon, no empty space)
     if (imageUrl.isNullOrBlank()) return
 
     var bitmap by remember(imageUrl) { mutableStateOf<Bitmap?>(null) }
     var isLoading by remember(imageUrl) { mutableStateOf(true) }
+    var loadFailed by remember(imageUrl) { mutableStateOf(false) }
 
     LaunchedEffect(imageUrl) {
         isLoading = true
-        bitmap = CatApiClient.loadBitmap(imageUrl)
+        loadFailed = false
+        val result = CatApiClient.loadBitmap(imageUrl)
+        bitmap = result
         isLoading = false
+        loadFailed = (result == null)
     }
 
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-            .heightIn(max = maxHeight),
-        contentAlignment = Alignment.Center
-    ) {
-        val currentBitmap = bitmap
-        if (currentBitmap != null) {
-            Image(
-                bitmap = currentBitmap.asImageBitmap(),
-                contentDescription = contentDescription,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 80.dp, max = maxHeight)
+    // If still loading: show compact spinner
+    if (isLoading) {
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .height(80.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(22.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.primary
             )
-        } else if (isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(90.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        } else {
-            // Placeholder fallback
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Image,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                    modifier = Modifier.size(20.dp)
-                )
-            }
         }
+        return
     }
+
+    // If load failed or no bitmap: show nothing (no broken image icon)
+    if (loadFailed || bitmap == null) return
+
+    val baseModifier = modifier
+        .fillMaxWidth()
+        .clip(RoundedCornerShape(12.dp))
+        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+
+    val finalModifier = if (maxHeight != null) {
+        baseModifier.heightIn(max = maxHeight)
+    } else {
+        baseModifier
+    }
+
+    // Show the loaded image, filling full width with full adaptive height
+    Image(
+        bitmap = bitmap!!.asImageBitmap(),
+        contentDescription = contentDescription,
+        contentScale = ContentScale.FillWidth,
+        modifier = finalModifier
+    )
 }

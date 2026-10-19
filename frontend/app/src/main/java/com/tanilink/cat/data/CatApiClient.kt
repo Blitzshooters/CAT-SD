@@ -11,12 +11,28 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
+import java.io.File
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
 
 object CatApiClient {
+
+    var cacheDir: File? = null
+
+    fun getCacheFile(key: String): File? {
+        val dir = cacheDir ?: return null
+        val cleanKey = key.replace("[^a-zA-Z0-9]".toRegex(), "_").takeLast(64)
+        return File(dir, "img_$cleanKey.cache")
+    }
+
+    fun saveCachedImage(key: String, bytes: ByteArray) {
+        val file = getCacheFile(key) ?: return
+        try {
+            file.writeBytes(bytes)
+        } catch (_: Exception) {}
+    }
 
     data class LoginResult(
         val name: String,
@@ -30,7 +46,7 @@ object CatApiClient {
     // 127.0.0.1 for local tests or adb reverse tcp:8000 tcp:8000 (USB device)
     // 192.168.1.2 for direct Wi-Fi LAN connection
     private const val BASE_URL_LOCAL = "http://127.0.0.1:8000/api"
-    private const val BASE_URL_LAN = "http://192.168.1.4:8000/api"
+    private const val BASE_URL_LAN = "http://10.82.198.105:8000/api"
     private const val BASE_URL_EMULATOR = "http://10.0.2.2:8000/api"
 
     var currentBaseUrl = BASE_URL_LOCAL
@@ -175,7 +191,7 @@ object CatApiClient {
                                     optImagesList.add(if (img.isNotEmpty()) resolveImageUrl(baseUrl, img) else null)
                                 }
                             } else {
-                                repeat(4) { optImagesList.add(null) }
+                                repeat(optionsList.size) { optImagesList.add(null) }
                             }
 
                             val qImg = qObj.optString("question_image", "")
@@ -521,7 +537,7 @@ object CatApiClient {
         null
     }
 
-    private fun resolveImageUrl(baseUrl: String, path: String): String {
+    fun resolveImageUrl(baseUrl: String, path: String): String {
         if (path.isBlank()) return ""
         if (path.startsWith("data:")) return path
         if (path.startsWith("http://") || path.startsWith("https://")) return path
@@ -540,14 +556,30 @@ object CatApiClient {
                 return@withContext BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
             }
 
+            // Check disk cache first for offline access
+            val cacheFile = getCacheFile(urlOrBase64)
+            if (cacheFile != null && cacheFile.exists() && cacheFile.length() > 0) {
+                try {
+                    val cachedBitmap = BitmapFactory.decodeFile(cacheFile.absolutePath)
+                    if (cachedBitmap != null) {
+                        return@withContext cachedBitmap
+                    }
+                } catch (_: Exception) {}
+            }
+
             // Build candidate URLs to attempt loading image
             val candidateUrls = mutableListOf<String>()
-            candidateUrls.add(urlOrBase64)
+            val trimmedUrl = urlOrBase64.trim()
+            candidateUrls.add(trimmedUrl)
 
-            // If it's a storage path or local URL, generate candidates with all known hosts
+            // Normalize path portion for storage / avatars
             val pathPortion = when {
-                urlOrBase64.contains("/storage/") -> "/storage/" + urlOrBase64.substringAfter("/storage/")
-                urlOrBase64.startsWith("/") -> urlOrBase64
+                trimmedUrl.contains("/storage/") -> "/storage/" + trimmedUrl.substringAfter("/storage/")
+                trimmedUrl.startsWith("/storage/") -> trimmedUrl
+                trimmedUrl.startsWith("storage/") -> "/$trimmedUrl"
+                trimmedUrl.startsWith("/avatars/") -> "/storage$trimmedUrl"
+                trimmedUrl.startsWith("avatars/") -> "/storage/$trimmedUrl"
+                trimmedUrl.startsWith("/") -> trimmedUrl
                 else -> null
             }
 
@@ -556,6 +588,7 @@ object CatApiClient {
                 val hosts = listOf(
                     currentBaseUrl.substringBefore("/api"),
                     "http://127.0.0.1:8000",
+                    "http://192.168.1.4:8000",
                     "http://192.168.1.2:8000",
                     "http://10.0.2.2:8000"
                 ).distinct()
@@ -564,6 +597,27 @@ object CatApiClient {
                     val fullUrl = "$h/$cleanPath"
                     if (!candidateUrls.contains(fullUrl)) {
                         candidateUrls.add(fullUrl)
+                    }
+                }
+            }
+
+            // If the URL already contained a host (e.g. http://127.0.0.1:8000/storage/...), also try other hosts
+            if (trimmedUrl.startsWith("http://") || trimmedUrl.startsWith("https://")) {
+                val pathAfterDomain = trimmedUrl.substringAfter("://").substringAfter("/", "")
+                if (pathAfterDomain.isNotBlank()) {
+                    val hosts = listOf(
+                        currentBaseUrl.substringBefore("/api"),
+                        "http://127.0.0.1:8000",
+                        "http://192.168.1.4:8000",
+                        "http://192.168.1.2:8000",
+                        "http://10.0.2.2:8000"
+                    ).distinct()
+
+                    for (h in hosts) {
+                        val fullUrl = "$h/$pathAfterDomain"
+                        if (!candidateUrls.contains(fullUrl)) {
+                            candidateUrls.add(fullUrl)
+                        }
                     }
                 }
             }
@@ -579,6 +633,12 @@ object CatApiClient {
                     if (conn.responseCode in 200..299) {
                         val bytes = conn.inputStream.use { it.readBytes() }
                         if (bytes.isNotEmpty()) {
+                            // Save to disk cache for offline use
+                            cacheFile?.let { f ->
+                                try {
+                                    f.writeBytes(bytes)
+                                } catch (_: Exception) {}
+                            }
                             val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
                             if (bitmap != null) {
                                 return@withContext bitmap

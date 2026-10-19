@@ -200,21 +200,19 @@ fun ReviewScreen(
                                     Spacer(modifier = Modifier.width(10.dp))
 
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = optText,
-                                            fontSize = 14.sp,
-                                            color = Color(0xFF1E293B),
-                                            fontWeight = if (isThisCorrect || isThisUserChoice) FontWeight.Bold else FontWeight.Normal
-                                        )
-
                                         val optImg = question.optionImages?.getOrNull(optIdx)
                                         if (!optImg.isNullOrBlank()) {
-                                            Spacer(modifier = Modifier.height(6.dp))
                                             CatImage(
                                                 imageUrl = optImg,
                                                 contentDescription = "Gambar Opsi ${labels.getOrElse(optIdx) { "" }}",
-                                                maxHeight = 90.dp,
                                                 modifier = Modifier.fillMaxWidth()
+                                            )
+                                        } else {
+                                            Text(
+                                                text = optText,
+                                                fontSize = 14.sp,
+                                                color = Color(0xFF1E293B),
+                                                fontWeight = if (isThisCorrect || isThisUserChoice) FontWeight.Bold else FontWeight.Normal
                                             )
                                         }
                                     }

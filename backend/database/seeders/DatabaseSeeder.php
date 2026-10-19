@@ -16,21 +16,33 @@ class DatabaseSeeder extends Seeder
         // Initial Accounts (password: unpkediri)
         // ──────────────────────────────────────────────
         $students = [
-            ['name' => 'Admin Guru',  'username' => 'admin',    'grade' => 5, 'avatar' => 'champion',  'is_admin' => true],
-            ['name' => 'Zam Zam',     'username' => 'zamzam',   'grade' => 5, 'avatar' => 'rabbit',    'is_admin' => true],
-            ['name' => 'Yusuf',       'username' => 'yusuf',    'grade' => 5, 'avatar' => 'bear',      'is_admin' => false],
-            ['name' => 'Yehosyua',    'username' => 'yehosyua', 'grade' => 5, 'avatar' => 'robot',     'is_admin' => false],
-            ['name' => 'Cantika',     'username' => 'cantika',  'grade' => 5, 'avatar' => 'astronaut', 'is_admin' => false],
+            ['name' => 'Admin Guru',  'username' => 'admin',    'nomor_induk' => '198507152010011002', 'grade' => 5, 'avatar' => 'champion',  'is_admin' => true],
+            ['name' => 'Zam Zam',     'username' => 'zamzam',   'nomor_induk' => '2024001',            'grade' => 5, 'avatar' => 'rabbit',    'is_admin' => true],
+            ['name' => 'Yusuf',       'username' => 'yusuf',    'nomor_induk' => '2024002',            'grade' => 5, 'avatar' => 'bear',      'is_admin' => false],
+            ['name' => 'Yehosyua',    'username' => 'yehosyua', 'nomor_induk' => '2024003',            'grade' => 5, 'avatar' => 'robot',     'is_admin' => false],
+            ['name' => 'Cantika',     'username' => 'cantika',  'nomor_induk' => '2024004',            'grade' => 5, 'avatar' => 'astronaut', 'is_admin' => false],
         ];
 
         foreach ($students as $s) {
-            User::firstOrCreate(['username' => $s['username']], [
-                'name'     => $s['name'],
-                'password' => Hash::make('unpkediri'),
-                'grade'    => $s['grade'],
-                'avatar'   => $s['avatar'],
-                'is_admin' => $s['is_admin'],
-            ]);
+            $user = User::where('username', $s['username'])->first();
+            if ($user) {
+                if (empty($user->nomor_induk)) {
+                    $user->nomor_induk = $s['nomor_induk'];
+                    $user->plain_password = 'unpkediri';
+                    $user->save();
+                }
+            } else {
+                User::create([
+                    'name'           => $s['name'],
+                    'username'       => $s['username'],
+                    'nomor_induk'    => $s['nomor_induk'],
+                    'password'       => Hash::make('unpkediri'),
+                    'plain_password' => 'unpkediri',
+                    'grade'          => $s['grade'],
+                    'avatar'         => $s['avatar'],
+                    'is_admin'       => $s['is_admin'],
+                ]);
+            }
         }
 
         // ──────────────────────────────────────────────

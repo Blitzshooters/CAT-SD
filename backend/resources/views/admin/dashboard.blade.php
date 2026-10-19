@@ -435,7 +435,7 @@
                         <i class="fa-solid fa-shield-cat text-amber-400"></i>
                         Pusat Pantauan AI Proctoring & Hasil Ujian Siswa
                     </h2>
-                    <p class="text-xs text-indigo-200">Pantau aktivitas ujian siswa, pelanggaran proctoring, snapshot kamera, dan kelola atau hapus ujian yang telah diambil.</p>
+                    <p class="text-xs text-indigo-200">Pantau aktivitas ujian siswa, pelanggaran proctoring, dan kelola atau hapus ujian yang telah diambil.</p>
                 </div>
 
                 <div class="flex items-center gap-2.5 flex-wrap">
@@ -461,7 +461,7 @@
             </div>
 
             <!-- Stats Overview Cards -->
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3.5">
                     <div class="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 text-xl font-bold">
                         <i class="fa-solid fa-graduation-cap"></i>
@@ -479,16 +479,6 @@
                     <div>
                         <p class="text-xs font-bold text-slate-400">Pelanggaran Terdeteksi</p>
                         <p class="text-xl font-black text-rose-600">{{ $stats['total_violations'] }}</p>
-                    </div>
-                </div>
-
-                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3.5">
-                    <div class="w-12 h-12 rounded-2xl bg-cyan-50 border border-cyan-100 flex items-center justify-center text-cyan-600 text-xl font-bold">
-                        <i class="fa-solid fa-camera"></i>
-                    </div>
-                    <div>
-                        <p class="text-xs font-bold text-slate-400">Snapshot Kamera Depan</p>
-                        <p class="text-xl font-black text-cyan-600">{{ $stats['total_snapshots'] }}</p>
                     </div>
                 </div>
 
@@ -596,117 +586,75 @@
                 </div>
             </div>
 
-            <!-- Grid 2 Kolom: Log Pelanggaran Real-time & Galeri Snapshot Kamera -->
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-                <!-- Log Pelanggaran AI Proctoring (8 cols) -->
-                <div class="lg:col-span-8 bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden space-y-3">
-                    <div class="p-5 border-b border-slate-200 flex items-center justify-between">
-                        <div>
-                            <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                                <i class="fa-solid fa-triangle-exclamation text-rose-500"></i>
-                                Log Catatan Pelanggaran AI Proctoring ({{ $recentViolations->count() }})
-                            </h3>
-                            <p class="text-xs text-slate-500">Terdeteksi otomatis oleh ML Kit Face Tracking & Pengawas Aplikasi CAT</p>
-                        </div>
-                    </div>
-
-                    <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
-                        <table class="w-full text-xs text-left">
-                            <thead class="bg-slate-50 text-slate-500 uppercase font-black text-[10px] border-b sticky top-0 z-10">
-                                <tr>
-                                    <th class="py-2.5 px-3">Siswa</th>
-                                    <th class="py-2.5 px-3">Tipe Pelanggaran</th>
-                                    <th class="py-2.5 px-3">Keterangan</th>
-                                    <th class="py-2.5 px-3">Soal</th>
-                                    <th class="py-2.5 px-3">Waktu</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                @forelse($recentViolations as $log)
-                                    @php
-                                        $typeBadge = match($log->violation_type) {
-                                            'SWITCH_TAB'        => ['bg' => 'bg-purple-100 text-purple-800 border-purple-200', 'icon' => 'fa-arrow-up-right-from-square', 'label' => 'Pindah Aplikasi'],
-                                            'NO_FACE'           => ['bg' => 'bg-rose-100 text-rose-800 border-rose-200', 'icon' => 'fa-user-slash', 'label' => 'Wajah Hilang'],
-                                            'MULTIPLE_FACES'    => ['bg' => 'bg-amber-100 text-amber-800 border-amber-200', 'icon' => 'fa-users', 'label' => 'Multi Wajah'],
-                                            'LOOKING_AWAY'      => ['bg' => 'bg-orange-100 text-orange-800 border-orange-200', 'icon' => 'fa-eye-slash', 'label' => 'Menoleh'],
-                                            'RAPID_ANSWERING'   => ['bg' => 'bg-yellow-100 text-yellow-900 border-yellow-200', 'icon' => 'fa-bolt', 'label' => 'Jawab Kilat'],
-                                            'SNAPSHOT_CAPTURED' => ['bg' => 'bg-cyan-100 text-cyan-800 border-cyan-200', 'icon' => 'fa-camera', 'label' => 'Snapshot'],
-                                            default             => ['bg' => 'bg-slate-100 text-slate-800 border-slate-200', 'icon' => 'fa-shield-halved', 'label' => $log->violation_type],
-                                        };
-                                    @endphp
-                                    <tr class="hover:bg-slate-50 transition">
-                                        <td class="py-2.5 px-3 font-bold text-slate-900">
-                                            {{ $log->user->name ?? 'Siswa' }}
-                                            <span class="block text-[10px] text-slate-400 font-normal">Kls {{ $log->user->grade ?? '-' }} SD</span>
-                                        </td>
-                                        <td class="py-2.5 px-3">
-                                            <span class="px-2 py-0.5 rounded-lg text-[10px] font-black border {{ $typeBadge['bg'] }} inline-flex items-center gap-1">
-                                                <i class="fa-solid {{ $typeBadge['icon'] }} text-[9px]"></i>
-                                                {{ $typeBadge['label'] }}
-                                            </span>
-                                        </td>
-                                        <td class="py-2.5 px-3 text-slate-700 font-medium">
-                                            {{ $log->description }}
-                                        </td>
-                                        <td class="py-2.5 px-3 text-slate-500 font-mono text-[11px]">
-                                            {{ $log->question_index !== null ? '#' . ($log->question_index + 1) : '-' }}
-                                        </td>
-                                        <td class="py-2.5 px-3 text-slate-400 text-[11px] whitespace-nowrap">
-                                            {{ $log->created_at ? $log->created_at->format('H:i:s') : '-' }}
-                                            <span class="block text-[10px]">{{ $log->created_at ? $log->created_at->diffForHumans() : '' }}</span>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="5" class="py-8 text-center text-slate-400">
-                                            <i class="fa-solid fa-circle-check text-2xl text-emerald-400 mb-1"></i>
-                                            <p class="font-bold">Tidak ada catatan pelanggaran.</p>
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Galeri Snapshot Kamera Depan (4 cols) -->
-                <div class="lg:col-span-4 bg-white rounded-3xl border border-slate-200 shadow-sm p-5 space-y-4">
+            <!-- Log Catatan Pelanggaran AI Proctoring (Full Width) -->
+            <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden space-y-3">
+                <div class="p-5 border-b border-slate-200 flex items-center justify-between">
                     <div>
                         <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                            <i class="fa-solid fa-camera-retro text-cyan-600"></i>
-                            Snapshot Kamera Siswa ({{ $recentSnapshots->count() }})
+                            <i class="fa-solid fa-triangle-exclamation text-rose-500"></i>
+                            Log Catatan Pelanggaran AI Proctoring ({{ $recentViolations->count() }})
                         </h3>
-                        <p class="text-xs text-slate-500">Tangkapan foto acak selama siswa ujian</p>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3 max-h-[580px] overflow-y-auto pr-1">
-                        @forelse($recentSnapshots as $snap)
-                            <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden group shadow-sm">
-                                <div class="aspect-video bg-slate-900 relative overflow-hidden flex items-center justify-center cursor-pointer"
-                                     onclick="previewSnapshot('{{ Storage::url($snap->file_path) }}', '{{ $snap->user->name ?? 'Siswa' }}')">
-                                    <img src="{{ Storage::url($snap->file_path) }}" alt="Snapshot Siswa"
-                                         class="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-                                         onerror="this.src='https://placehold.co/300x200/indigo/white?text=Foto+Snapshot'">
-                                    <div class="absolute bottom-1 right-1 bg-black/60 text-[9px] text-white px-1.5 py-0.5 rounded font-mono">
-                                        {{ $snap->created_at ? $snap->created_at->format('H:i') : '' }}
-                                    </div>
-                                </div>
-                                <div class="p-2 text-[11px]">
-                                    <p class="font-bold text-slate-800 truncate">{{ $snap->user->name ?? 'Siswa' }}</p>
-                                    <p class="text-[10px] text-slate-400">{{ $snap->created_at ? $snap->created_at->diffForHumans() : '' }}</p>
-                                </div>
-                            </div>
-                        @empty
-                            <div class="col-span-2 bg-slate-50 p-6 rounded-2xl border border-dashed border-slate-300 text-center text-slate-400">
-                                <i class="fa-solid fa-camera text-3xl text-slate-300 mb-2"></i>
-                                <p class="text-xs font-bold text-slate-600">Belum ada snapshot kamera</p>
-                                <p class="text-[11px] text-slate-400 mt-1">Snapshot kamera depan siswa yang diambil selama ujian akan tampil di sini secara real-time.</p>
-                            </div>
-                        @endforelse
+                        <p class="text-xs text-slate-500">Terdeteksi otomatis oleh ML Kit Face Tracking & Pengawas Aplikasi CAT</p>
                     </div>
                 </div>
 
+                <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
+                    <table class="w-full text-xs text-left">
+                        <thead class="bg-slate-50 text-slate-500 uppercase font-black text-[10px] border-b sticky top-0 z-10">
+                            <tr>
+                                <th class="py-2.5 px-3">Siswa</th>
+                                <th class="py-2.5 px-3">Tipe Pelanggaran</th>
+                                <th class="py-2.5 px-3">Keterangan</th>
+                                <th class="py-2.5 px-3">Soal</th>
+                                <th class="py-2.5 px-3">Waktu</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @forelse($recentViolations as $log)
+                                @php
+                                    $typeBadge = match($log->violation_type) {
+                                        'SWITCH_TAB'        => ['bg' => 'bg-purple-100 text-purple-800 border-purple-200', 'icon' => 'fa-arrow-up-right-from-square', 'label' => 'Pindah Aplikasi'],
+                                        'NO_FACE'           => ['bg' => 'bg-rose-100 text-rose-800 border-rose-200', 'icon' => 'fa-user-slash', 'label' => 'Wajah Hilang'],
+                                        'MULTIPLE_FACES'    => ['bg' => 'bg-amber-100 text-amber-800 border-amber-200', 'icon' => 'fa-users', 'label' => 'Multi Wajah'],
+                                        'LOOKING_AWAY'      => ['bg' => 'bg-orange-100 text-orange-800 border-orange-200', 'icon' => 'fa-eye-slash', 'label' => 'Menoleh'],
+                                        'RAPID_ANSWERING'   => ['bg' => 'bg-yellow-100 text-yellow-900 border-yellow-200', 'icon' => 'fa-bolt', 'label' => 'Jawab Kilat'],
+                                        'SNAPSHOT_CAPTURED' => ['bg' => 'bg-cyan-100 text-cyan-800 border-cyan-200', 'icon' => 'fa-camera', 'label' => 'Snapshot'],
+                                        default             => ['bg' => 'bg-slate-100 text-slate-800 border-slate-200', 'icon' => 'fa-shield-halved', 'label' => $log->violation_type],
+                                    };
+                                @endphp
+                                <tr class="hover:bg-slate-50 transition">
+                                    <td class="py-2.5 px-3 font-bold text-slate-900">
+                                        {{ $log->user->name ?? 'Siswa' }}
+                                        <span class="block text-[10px] text-slate-400 font-normal">Kls {{ $log->user->grade ?? '-' }} SD</span>
+                                    </td>
+                                    <td class="py-2.5 px-3">
+                                        <span class="px-2 py-0.5 rounded-lg text-[10px] font-black border {{ $typeBadge['bg'] }} inline-flex items-center gap-1">
+                                            <i class="fa-solid {{ $typeBadge['icon'] }} text-[9px]"></i>
+                                            {{ $typeBadge['label'] }}
+                                        </span>
+                                    </td>
+                                    <td class="py-2.5 px-3 text-slate-700 font-medium">
+                                        {{ $log->description }}
+                                    </td>
+                                    <td class="py-2.5 px-3 text-slate-500 font-mono text-[11px]">
+                                        {{ $log->question_index !== null ? '#' . ($log->question_index + 1) : '-' }}
+                                    </td>
+                                    <td class="py-2.5 px-3 text-slate-400 text-[11px] whitespace-nowrap">
+                                        {{ $log->created_at ? $log->created_at->format('H:i:s') : '-' }}
+                                        <span class="block text-[10px]">{{ $log->created_at ? $log->created_at->diffForHumans() : '' }}</span>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="5" class="py-8 text-center text-slate-400">
+                                        <i class="fa-solid fa-circle-check text-2xl text-emerald-400 mb-1"></i>
+                                        <p class="font-bold">Tidak ada catatan pelanggaran.</p>
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
         </section>
@@ -1171,34 +1119,21 @@
                     </div>
                 </div>
 
-                <!-- 4 Pilihan Jawaban (A, B, C, D) + Gambar Pilihan -->
+                <!-- Pilihan Jawaban Dinamis (A, B, C, D, E, ...) + Gambar Pilihan -->
                 <div class="space-y-3">
-                    <label class="block text-slate-900 font-bold flex items-center justify-between">
-                        <span>4 Pilihan Jawaban & Gambar Pilihan *</span>
-                        <span class="text-[11px] font-normal text-slate-500">Pilih Radio untuk Jawaban Benar</span>
-                    </label>
+                    <div class="flex items-center justify-between">
+                        <label class="block text-slate-900 font-bold">
+                            Pilihan Jawaban & Gambar Pilihan *
+                        </label>
+                        <button type="button" onclick="addOptionToForm('create_options_list', 'create')"
+                                class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl font-bold text-xs border border-emerald-300 transition flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-plus text-xs"></i> Tambah Pilihan Jawaban
+                        </button>
+                    </div>
 
-                    @foreach(['A', 'B', 'C', 'D'] as $optIdx => $label)
-                        <div class="p-3 rounded-2xl border border-slate-200 bg-white space-y-2">
-                            <div class="flex items-center gap-2">
-                                <input type="radio" id="correct_opt_{{ $optIdx }}" name="correct_answer_index" value="{{ $optIdx }}" {{ $optIdx == 0 ? 'checked' : '' }}
-                                       class="w-4 h-4 text-emerald-600 focus:ring-emerald-500">
-                                <label for="correct_opt_{{ $optIdx }}" class="w-6 h-6 rounded-md bg-slate-100 font-black text-xs flex items-center justify-center shrink-0 cursor-pointer">
-                                    {{ $label }}
-                                </label>
-                                <input type="text" name="option_{{ $optIdx }}" required placeholder="Teks Pilihan {{ $label }}..."
-                                       class="w-full px-3 py-1.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                            </div>
-
-                            <!-- Gambar Pilihan Jawaban -->
-                            <div class="pl-8 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-                                <input type="file" name="opt_image_file_{{ $optIdx }}" accept="image/*"
-                                       class="w-full text-[10px] text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[10px] file:bg-slate-100 file:text-slate-700">
-                                <input type="text" name="opt_image_url_{{ $optIdx }}" placeholder="URL Gambar Opsi {{ $label }}..."
-                                       class="w-full px-2.5 py-1 rounded-md border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none text-[11px]">
-                            </div>
-                        </div>
-                    @endforeach
+                    <div id="create_options_list" class="space-y-2.5">
+                        <!-- Default 4 options rendered initially, expandable to any count -->
+                    </div>
                 </div>
 
                 <!-- Pembahasan Soal -->
@@ -1263,34 +1198,21 @@
                     </div>
                 </div>
 
-                <!-- 4 Pilihan Jawaban (A, B, C, D) + Gambar Pilihan -->
+                <!-- Pilihan Jawaban Dinamis (A, B, C, D, E, ...) + Gambar Pilihan -->
                 <div class="space-y-3">
-                    <label class="block text-slate-900 font-bold flex items-center justify-between">
-                        <span>4 Pilihan Jawaban & Gambar Pilihan *</span>
-                        <span class="text-[11px] font-normal text-slate-500">Pilih Radio untuk Jawaban Benar</span>
-                    </label>
+                    <div class="flex items-center justify-between">
+                        <label class="block text-slate-900 font-bold">
+                            Pilihan Jawaban & Gambar Pilihan *
+                        </label>
+                        <button type="button" onclick="addOptionToForm('edit_options_list', 'edit')"
+                                class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl font-bold text-xs border border-indigo-300 transition flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-plus text-xs"></i> Tambah Pilihan Jawaban
+                        </button>
+                    </div>
 
-                    @foreach(['A', 'B', 'C', 'D'] as $optIdx => $label)
-                        <div class="p-3 rounded-2xl border border-slate-200 bg-white space-y-2">
-                            <div class="flex items-center gap-2">
-                                <input type="radio" id="edit_correct_opt_{{ $optIdx }}" name="correct_answer_index" value="{{ $optIdx }}"
-                                       class="w-4 h-4 text-indigo-600 focus:ring-indigo-500">
-                                <label for="edit_correct_opt_{{ $optIdx }}" class="w-6 h-6 rounded-md bg-slate-100 font-black text-xs flex items-center justify-center shrink-0 cursor-pointer">
-                                    {{ $label }}
-                                </label>
-                                <input type="text" id="edit_q_opt_{{ $optIdx }}" name="option_{{ $optIdx }}" required placeholder="Teks Pilihan {{ $label }}..."
-                                       class="w-full px-3 py-1.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                            </div>
-
-                            <!-- Gambar Pilihan Jawaban -->
-                            <div class="pl-8 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-                                <input type="file" name="opt_image_file_{{ $optIdx }}" accept="image/*"
-                                       class="w-full text-[10px] text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[10px] file:bg-slate-100 file:text-slate-700">
-                                <input type="text" id="edit_q_opt_img_{{ $optIdx }}" name="opt_image_url_{{ $optIdx }}" placeholder="URL Gambar Opsi {{ $label }}..."
-                                       class="w-full px-2.5 py-1 rounded-md border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-[11px]">
-                            </div>
-                        </div>
-                    @endforeach
+                    <div id="edit_options_list" class="space-y-2.5">
+                        <!-- Populated dynamically via JS editQuestion -->
+                    </div>
                 </div>
 
                 <!-- Pembahasan Soal -->
@@ -1312,9 +1234,108 @@
     <script>
         function openModal(id) {
             document.getElementById(id).classList.remove('hidden');
+            if (id === 'modalCreateQuestion') {
+                const list = document.getElementById('create_options_list');
+                if (!list.children.length) {
+                    initDefaultCreateOptions();
+                }
+            }
         }
         function closeModal(id) {
             document.getElementById(id).classList.add('hidden');
+        }
+
+        function getOptionLabel(idx) {
+            return String.fromCharCode(65 + idx);
+        }
+
+        function createOptionHtml(prefix, idx, value = '', imgUrl = '', isChecked = false) {
+            const label = getOptionLabel(idx);
+            return `
+                <div class="option-row p-3 rounded-2xl border border-slate-200 bg-white space-y-2" data-index="${idx}">
+                    <div class="flex items-center gap-2">
+                        <input type="radio" id="${prefix}_correct_opt_${idx}" name="correct_answer_index" value="${idx}" ${isChecked ? 'checked' : ''}
+                               class="w-4 h-4 text-indigo-600 focus:ring-indigo-500 shrink-0">
+                        <label for="${prefix}_correct_opt_${idx}" class="opt-label-badge w-6 h-6 rounded-md bg-slate-100 font-black text-xs flex items-center justify-center shrink-0 cursor-pointer text-slate-800">
+                            ${label}
+                        </label>
+                        <input type="text" name="option_${idx}" value="${value ? value.replace(/"/g, '&quot;') : ''}" required placeholder="Teks Pilihan ${label}..."
+                               class="w-full px-3 py-1.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-xs font-semibold">
+                        <button type="button" onclick="removeOptionRow(this, '${prefix}')" title="Hapus pilihan ini"
+                                class="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition shrink-0 border border-rose-200">
+                            <i class="fa-solid fa-trash-can text-xs"></i>
+                        </button>
+                    </div>
+                    <div class="pl-8 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                        <input type="file" name="opt_image_file_${idx}" accept="image/*"
+                               class="w-full text-[10px] text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[10px] file:bg-slate-100 file:text-slate-700">
+                        <input type="text" name="opt_image_url_${idx}" value="${imgUrl ? imgUrl.replace(/"/g, '&quot;') : ''}" placeholder="URL Gambar Opsi ${label}..."
+                               class="w-full px-2.5 py-1 rounded-md border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-[11px]">
+                    </div>
+                </div>
+            `;
+        }
+
+        function reindexOptions(containerId, prefix) {
+            const container = document.getElementById(containerId);
+            const rows = container.querySelectorAll('.option-row');
+            rows.forEach((row, idx) => {
+                row.setAttribute('data-index', idx);
+                const label = getOptionLabel(idx);
+                const radio = row.querySelector('input[type="radio"]');
+                const badge = row.querySelector('.opt-label-badge');
+                const textInput = row.querySelector('input[type="text"]:not([name^="opt_image_url"])');
+                const fileInput = row.querySelector('input[type="file"]');
+                const imgUrlInput = row.querySelector('input[name^="opt_image_url"]');
+
+                if (radio) {
+                    radio.id = `${prefix}_correct_opt_${idx}`;
+                    radio.value = idx;
+                }
+                if (badge) {
+                    badge.setAttribute('for', `${prefix}_correct_opt_${idx}`);
+                    badge.textContent = label;
+                }
+                if (textInput) {
+                    textInput.name = `option_${idx}`;
+                    textInput.placeholder = `Teks Pilihan ${label}...`;
+                }
+                if (fileInput) {
+                    fileInput.name = `opt_image_file_${idx}`;
+                }
+                if (imgUrlInput) {
+                    imgUrlInput.name = `opt_image_url_${idx}`;
+                    imgUrlInput.placeholder = `URL Gambar Opsi ${label}...`;
+                }
+            });
+        }
+
+        function addOptionToForm(containerId, prefix, value = '', imgUrl = '', isChecked = false) {
+            const container = document.getElementById(containerId);
+            const nextIdx = container.querySelectorAll('.option-row').length;
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = createOptionHtml(prefix, nextIdx, value, imgUrl, isChecked || nextIdx === 0);
+            container.appendChild(tempDiv.firstElementChild);
+            reindexOptions(containerId, prefix);
+        }
+
+        function removeOptionRow(btn, prefix) {
+            const row = btn.closest('.option-row');
+            const container = row.parentElement;
+            if (container.querySelectorAll('.option-row').length <= 2) {
+                alert('Soal pilihan ganda minimal harus memiliki 2 pilihan jawaban.');
+                return;
+            }
+            row.remove();
+            reindexOptions(container.id, prefix);
+        }
+
+        function initDefaultCreateOptions() {
+            const container = document.getElementById('create_options_list');
+            container.innerHTML = '';
+            for (let i = 0; i < 4; i++) {
+                addOptionToForm('create_options_list', 'create', '', '', i === 0);
+            }
         }
 
         function editSubject(subject) {
@@ -1349,16 +1370,13 @@
                 imgStatus.textContent = '(Belum ada gambar)';
             }
 
-            // Parse options
+            // Parse dynamic options
             let opts = q.options;
             if (typeof opts === 'string') {
                 try { opts = JSON.parse(opts); } catch(e) { opts = []; }
             }
-            if (Array.isArray(opts)) {
-                for (let i = 0; i < 4; i++) {
-                    const el = document.getElementById(`edit_q_opt_${i}`);
-                    if (el) el.value = opts[i] || '';
-                }
+            if (!Array.isArray(opts) || opts.length === 0) {
+                opts = ['', '', '', ''];
             }
 
             // Parse option images
@@ -1366,15 +1384,18 @@
             if (typeof optImgs === 'string') {
                 try { optImgs = JSON.parse(optImgs); } catch(e) { optImgs = []; }
             }
-            for (let i = 0; i < 4; i++) {
-                const el = document.getElementById(`edit_q_opt_img_${i}`);
-                if (el) el.value = (Array.isArray(optImgs) && optImgs[i]) ? optImgs[i] : '';
+            if (!Array.isArray(optImgs)) {
+                optImgs = [];
             }
 
-            // Select radio correct answer
             const correctIdx = parseInt(q.correct_answer_index) || 0;
-            const radio = document.getElementById(`edit_correct_opt_${correctIdx}`);
-            if (radio) radio.checked = true;
+
+            const editContainer = document.getElementById('edit_options_list');
+            editContainer.innerHTML = '';
+            opts.forEach((optText, i) => {
+                const img = optImgs[i] || '';
+                addOptionToForm('edit_options_list', 'edit', optText, img, i === correctIdx);
+            });
 
             const form = document.getElementById('formEditQuestion');
             form.action = `/admin/questions/${q.id}`;
@@ -1429,13 +1450,6 @@
             });
         }
 
-        // Snapshot Preview Modal
-        function previewSnapshot(url, studentName) {
-            document.getElementById('snapshotModalImg').src = url;
-            document.getElementById('snapshotModalTitle').innerHTML = '<i class="fa-solid fa-camera text-cyan-600"></i> Snapshot Kamera: ' + (studentName || 'Siswa');
-            openModal('modalSnapshotPreview');
-        }
-
         // Auto Refresh for AI Proctoring Monitor (10 seconds)
         let autoRefreshTimer = null;
         let isAutoRefreshActive = true;
@@ -1480,23 +1494,5 @@
             startAutoRefresh();
         }
     </script>
-
-    <!-- Modal Preview Snapshot Kamera -->
-    <div id="modalSnapshotPreview" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-3xl max-w-lg w-full p-5 shadow-2xl space-y-3">
-            <div class="flex items-center justify-between border-b pb-2.5">
-                <h4 id="snapshotModalTitle" class="text-sm font-bold text-slate-900 flex items-center gap-2">
-                    <i class="fa-solid fa-camera text-cyan-600"></i> Snapshot Kamera Siswa
-                </h4>
-                <button onclick="closeModal('modalSnapshotPreview')" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
-            </div>
-            <div class="rounded-2xl overflow-hidden bg-slate-950 flex items-center justify-center p-2">
-                <img id="snapshotModalImg" src="" alt="Snapshot Siswa" class="max-h-[65vh] w-auto rounded-xl object-contain shadow-inner">
-            </div>
-            <div class="text-right">
-                <button type="button" onclick="closeModal('modalSnapshotPreview')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">Tutup</button>
-            </div>
-        </div>
-    </div>
 </body>
 </html>

@@ -1,7 +1,5 @@
 package com.tanilink.cat.ui.screens
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -12,7 +10,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -32,19 +29,12 @@ import kotlinx.coroutines.launch
 fun LoginScreen(
     onLoginSuccess: (String, UserAvatar, String, Boolean, String, String, String) -> Unit // name, avatar, token, isAdmin, username, nomorInduk, serverAvatar
 ) {
-    var selectedUsername by remember { mutableStateOf("zamzam") }
+    var usernameInput by remember { mutableStateOf("") }
     var passwordInput by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
-
-    val accounts = listOf(
-        Quadruple("zamzam", "Zam Zam", SampleData.avatars[0], true),  // Admin
-        Quadruple("yusuf", "Yusuf", SampleData.avatars[1], false),   // Siswa
-        Quadruple("yehosyua", "Yehosyua", SampleData.avatars[2], false), // Siswa
-        Quadruple("cantika", "Cantika", SampleData.avatars[3], false)  // Siswa
-    )
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
@@ -57,9 +47,9 @@ fun LoginScreen(
         ) {
             Column(
                 modifier = Modifier
-                    .widthIn(max = 420.dp)
-                    .padding(24.dp)
-                    .verticalScroll(rememberScrollState()),
+                .widthIn(max = 420.dp)
+                .padding(24.dp)
+                .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Header Logo Banner
@@ -67,7 +57,7 @@ fun LoginScreen(
                     shape = CircleShape,
                     color = Color(0xFF4F46E5),
                     modifier = Modifier
-                        .size(72.dp)
+                        .size(76.dp)
                         .shadow(8.dp, CircleShape)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -75,251 +65,196 @@ fun LoginScreen(
                             imageVector = Icons.Default.School,
                             contentDescription = null,
                             tint = Color.White,
-                            modifier = Modifier.size(38.dp)
+                            modifier = Modifier.size(40.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 Text(
                     text = "Aplikasi CAT Ujian SD",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "Login JWT Student & Admin Account",
+                    text = "Masuk Menggunakan Akun Terdaftar",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-                // Account Selector Quick Cards (Scrollable inside max height)
+                // Card Container for Manual Input Fields
                 Card(
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(24.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Text(
+                            text = "Silakan Masukkan Kredensial:",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        // Username Input Field
+                        OutlinedTextField(
+                            value = usernameInput,
+                            onValueChange = {
+                                usernameInput = it
+                                if (errorMessage.isNotEmpty()) errorMessage = ""
+                            },
+                            isError = errorMessage.isNotEmpty(),
+                            label = { Text("Nama Pengguna (Username)") },
+                            placeholder = { Text("Contoh: yusuf / zamzam") },
+                            leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                            singleLine = true,
+                            shape = RoundedCornerShape(16.dp),
                             modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Pilih Akun Pengguna Ujian:",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "Scroll ↓",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(10.dp))
+                        )
 
-                        Column(
-                            modifier = Modifier
-                                .heightIn(max = 160.dp)
-                                .verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            accounts.forEach { (uname, name, av, isAdmin) ->
-                                val isSelected = selectedUsername == uname
-                                Surface(
-                                    shape = RoundedCornerShape(14.dp),
-                                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                                    border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { selectedUsername = uname }
+                        // Password Input Field
+                        OutlinedTextField(
+                            value = passwordInput,
+                            onValueChange = {
+                                passwordInput = it
+                                if (errorMessage.isNotEmpty()) errorMessage = ""
+                            },
+                            isError = errorMessage.isNotEmpty(),
+                            label = { Text("Kata Sandi (Password)") },
+                            placeholder = { Text("Masukkan password akun...") },
+                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                            trailingIcon = {
+                                IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                                    Icon(
+                                        imageVector = if (isPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                        contentDescription = null
+                                    )
+                                }
+                            },
+                            visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        if (errorMessage.isNotEmpty()) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.errorContainer,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(10.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Surface(
-                                            shape = CircleShape,
-                                            color = av.backgroundColor,
-                                            modifier = Modifier.size(34.dp)
-                                        ) {
-                                            Box(contentAlignment = Alignment.Center) {
-                                                Icon(
-                                                    imageVector = getAvatarIcon(av.iconName),
-                                                    contentDescription = null,
-                                                    tint = Color(0xFF4F46E5),
-                                                    modifier = Modifier.size(18.dp)
-                                                )
-                                            }
-                                        }
+                                    Icon(
+                                        imageVector = Icons.Default.ErrorOutline,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = errorMessage,
+                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                        }
 
-                                        Spacer(modifier = Modifier.width(10.dp))
-
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Text(
-                                                    text = name,
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 14.sp,
-                                                    color = MaterialTheme.colorScheme.onSurface
-                                                )
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                Surface(
-                                                    shape = RoundedCornerShape(6.dp),
-                                                    color = if (isAdmin) Color(0xFF7C3AED) else Color(0xFF0284C7)
-                                                ) {
-                                                    Text(
-                                                        text = if (isAdmin) "ADMIN" else "SISWA",
-                                                        fontSize = 9.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = Color.White,
-                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                    )
-                                                }
-                                            }
-                                            Text(
-                                                text = if (isAdmin) "Username: $uname • Bebas Screenshot & Rekam" else "Username: $uname • Mode Proteksi Ujian",
-                                                fontSize = 11.sp,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-
-                                        if (isSelected) {
-                                            Icon(
-                                                imageVector = Icons.Default.CheckCircle,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                        }
+                        // Login Button
+                        Button(
+                            onClick = {
+                                val trimmedUsername = usernameInput.trim()
+                                if (trimmedUsername.isBlank()) {
+                                    errorMessage = "Ketik username akun terlebih dahulu."
+                                    return@Button
+                                }
+                                if (passwordInput.isBlank()) {
+                                    errorMessage = "Ketik kata sandi terlebih dahulu."
+                                    return@Button
+                                }
+                                isLoading = true
+                                errorMessage = ""
+                                coroutineScope.launch {
+                                    val result = CatApiClient.login(trimmedUsername, passwordInput)
+                                    isLoading = false
+                                    if (result != null) {
+                                        // Login sukses dari database backend
+                                        onLoginSuccess(
+                                            result.name,
+                                            SampleData.avatars[0],
+                                            result.token,
+                                            result.isAdmin,
+                                            trimmedUsername,
+                                            result.nomorInduk,
+                                            result.avatar
+                                        )
+                                    } else {
+                                        errorMessage = "Username atau password salah. Pastikan akun terdaftar di database server."
                                     }
                                 }
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Password Input Field
-                OutlinedTextField(
-                    value = passwordInput,
-                    onValueChange = {
-                        passwordInput = it
-                        if (errorMessage.isNotEmpty()) errorMessage = ""
-                    },
-                    isError = errorMessage.isNotEmpty(),
-                    label = { Text("Kata Sandi (Password)") },
-                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
-                    trailingIcon = {
-                        IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
-                            Icon(
-                                imageVector = if (isPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                contentDescription = null
-                            )
-                        }
-                    },
-                    supportingText = {
-                        if (errorMessage.isNotEmpty()) {
-                            Text(
-                                text = errorMessage,
-                                color = MaterialTheme.colorScheme.error,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    },
-                    visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    singleLine = true,
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Login Button
-                Button(
-                    onClick = {
-                        if (passwordInput.isBlank()) {
-                            errorMessage = "Masukkan password terlebih dahulu."
-                            return@Button
-                        }
-                        val acc = accounts.find { it.first == selectedUsername } ?: return@Button
-                        isLoading = true
-                        errorMessage = ""
-                        coroutineScope.launch {
-                            val result = CatApiClient.login(selectedUsername, passwordInput)
-                            isLoading = false
-                            if (result != null) {
-                                // Login backend berhasil — gunakan data dari server
-                                onLoginSuccess(
-                                    result.name,
-                                    acc.third,
-                                    result.token,
-                                    result.isAdmin,
-                                    selectedUsername,
-                                    result.nomorInduk,
-                                    result.avatar
+                            },
+                            enabled = !isLoading,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                                disabledContentColor = Color.White
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(
+                                defaultElevation = 4.dp,
+                                pressedElevation = 1.dp
+                            ),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp)
+                        ) {
+                            if (isLoading) {
+                                CircularProgressIndicator(
+                                    color = Color.White,
+                                    strokeWidth = 2.5.dp,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = "Memverifikasi Akun...",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
                                 )
                             } else {
-                                // Fallback: coba validasi lokal jika backend tidak tersedia
-                                if (passwordInput == "unpkediri") {
-                                    val mockToken = "offline_token_${acc.first}_${System.currentTimeMillis()}"
-                                    onLoginSuccess(acc.second, acc.third, mockToken, acc.fourth, selectedUsername, "", "")
-                                } else {
-                                    errorMessage = "Username atau password salah. (Backend tidak tersedia, gunakan password: unpkediri)"
-                                }
+                                Icon(Icons.Default.Login, contentDescription = null, tint = Color.White)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Masuk ke Akun Ujian",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
                             }
-                        }
-                    },
-                    enabled = !isLoading,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
-                        disabledContentColor = Color.White
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 6.dp,
-                        pressedElevation = 2.dp,
-                        disabledElevation = 0.dp
-                    ),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(54.dp)
-                        .shadow(4.dp, RoundedCornerShape(16.dp))
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(22.dp),
-                                color = Color.White,
-                                strokeWidth = 2.5.dp
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = "Memverifikasi Akun...",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp,
-                                color = Color.White
-                            )
-                        } else {
-                            Icon(Icons.Default.Login, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Masuk Ujian", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Text(
+                    text = "CAT Ujian SD v2.0 • Sistem Terhubung ke Database MySQL",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
             }
         }
     }

@@ -24,7 +24,7 @@ data class ExamSubject(
     val durationMinutes: Int,
     val description: String,
     val maxViolations: Int = 3,
-    val remedyCode: String = "REMEDI5",
+    val remedyCode: String = "",
     val gradeLevel: Int = 5
 )
 

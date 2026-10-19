@@ -30,11 +30,13 @@ import com.tanilink.cat.data.SampleData
 import com.tanilink.cat.model.ExamResult
 import com.tanilink.cat.model.ExamSubject
 import com.tanilink.cat.model.UserAvatar
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     studentName: String,
+    nomorInduk: String = "",
     selectedGrade: Int,
     selectedAvatar: UserAvatar,
     customAvatarUrl: String = "",
@@ -50,6 +52,8 @@ fun HomeScreen(
     var pendingSubjectForUnlock by remember { mutableStateOf<ExamSubject?>(null) }
     var unlockCodeInput by remember { mutableStateOf("") }
     var unlockErrorMsg by remember { mutableStateOf<String?>(null) }
+    var isVerifyingUnlock by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
     var customPhotoBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
 
     LaunchedEffect(customAvatarUrl) {
@@ -107,7 +111,7 @@ fun HomeScreen(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Ujian SD • Kelas $selectedGrade",
+                                text = if (nomorInduk.isNotBlank()) "NISN: $nomorInduk • Kelas $selectedGrade" else "Ujian SD • Kelas $selectedGrade",
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -222,6 +226,20 @@ fun HomeScreen(
                                             fontWeight = FontWeight.ExtraBold,
                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                         )
+                                    }
+                                    if (nomorInduk.isNotBlank()) {
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = Color.White.copy(alpha = 0.25f)
+                                        ) {
+                                            Text(
+                                                text = "NISN: $nomorInduk",
+                                                color = Color.White,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                            )
+                                        }
                                     }
                                     Text(
                                         text = "Tingkat Ujian Aktif",
@@ -433,24 +451,55 @@ fun HomeScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        val isCorrect = unlockCodeInput.trim().equals("unpkediri", ignoreCase = true) ||
-                                (pendingSubjectForUnlock?.remedyCode?.let { unlockCodeInput.trim().equals(it.trim(), ignoreCase = true) } == true)
-                        if (isCorrect) {
-                            val subj = pendingSubjectForUnlock
-                            pendingSubjectForUnlock = null
-                            subj?.let { onStartExam(it) }
-                        } else {
-                            unlockErrorMsg = "Kode remedi / khusus salah! Akses ditolak."
+                        val trimmed = unlockCodeInput.trim()
+                        if (trimmed.isEmpty()) {
+                            unlockErrorMsg = "Masukkan kode remedi terlebih dahulu!"
+                            return@Button
+                        }
+                        val subj = pendingSubjectForUnlock ?: return@Button
+                        coroutineScope.launch {
+                            isVerifyingUnlock = true
+                            unlockErrorMsg = null
+                            val localRemedyMatch = subj.remedyCode.isNotBlank() && trimmed.equals(subj.remedyCode.trim(), ignoreCase = true)
+                            val remoteRemedyMatch = CatApiClient.verifyRemedyCode(subj.id, trimmed)
+                            val classCodeMatch = CatApiClient.verifyClassChangeCode(trimmed)
+
+                            if (localRemedyMatch || remoteRemedyMatch || classCodeMatch) {
+                                pendingSubjectForUnlock = null
+                                unlockCodeInput = ""
+                                onStartExam(subj)
+                            } else {
+                                unlockErrorMsg = "Kode remedi / izin khusus salah! Silakan tanyakan kepada pengawas."
+                            }
+                            isVerifyingUnlock = false
                         }
                     },
+                    enabled = !isVerifyingUnlock,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4F46E5)),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Buka & Mulai Ujian", fontWeight = FontWeight.Bold)
+                    if (isVerifyingUnlock) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Memverifikasi...")
+                    } else {
+                        Text("Buka & Mulai Ujian", fontWeight = FontWeight.Bold)
+                    }
                 }
             },
             dismissButton = {
-                TextButton(onClick = { pendingSubjectForUnlock = null }) {
+                TextButton(
+                    onClick = {
+                        pendingSubjectForUnlock = null
+                        unlockCodeInput = ""
+                        unlockErrorMsg = null
+                    },
+                    enabled = !isVerifyingUnlock
+                ) {
                     Text("Batal")
                 }
             }

@@ -5,6 +5,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import com.tanilink.cat.model.ExamResult
+import com.tanilink.cat.model.Question
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -29,6 +30,7 @@ class ExamDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
         private const val COLUMN_TIMESTAMP = "timestamp"
         private const val COLUMN_USER_ANSWERS = "user_answers_json"
         private const val COLUMN_FLAGGED_QUESTIONS = "flagged_questions_json"
+        private const val COLUMN_QUESTIONS = "questions_json"
     }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -47,10 +49,20 @@ class ExamDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
                 $COLUMN_TIME_SPENT INTEGER,
                 $COLUMN_TIMESTAMP INTEGER,
                 $COLUMN_USER_ANSWERS TEXT,
-                $COLUMN_FLAGGED_QUESTIONS TEXT
+                $COLUMN_FLAGGED_QUESTIONS TEXT,
+                $COLUMN_QUESTIONS TEXT
             )
         """.trimIndent()
         db.execSQL(createTableQuery)
+    }
+
+    override fun onOpen(db: SQLiteDatabase) {
+        super.onOpen(db)
+        try {
+            db.execSQL("ALTER TABLE $TABLE_EXAM_RESULTS ADD COLUMN $COLUMN_QUESTIONS TEXT")
+        } catch (_: Exception) {
+            // Column already exists
+        }
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -86,6 +98,24 @@ class ExamDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
                 flaggedJson.put(qIdx)
             }
             put(COLUMN_FLAGGED_QUESTIONS, flaggedJson.toString())
+
+            // Convert questions list to JSON array string
+            val questionsJson = JSONArray()
+            result.questions.forEach { q ->
+                val qObj = JSONObject().apply {
+                    put("id", q.id)
+                    put("prompt", q.prompt)
+                    put("image_url", q.imageUrl ?: "")
+                    put("options", JSONArray(q.options))
+                    put("option_images", JSONArray(q.optionImages ?: emptyList<String>()))
+                    put("correct_answer_index", q.correctAnswerIndex)
+                    put("explanation", q.explanation)
+                    put("subject_id", q.subjectId)
+                    put("grade_level", q.gradeLevel)
+                }
+                questionsJson.put(qObj)
+            }
+            put(COLUMN_QUESTIONS, questionsJson.toString())
         }
 
         return db.insert(TABLE_EXAM_RESULTS, null, values)
@@ -143,7 +173,49 @@ class ExamDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
                     }
                 }
 
-                val questions = SampleData.getQuestionsForSubjectAndGrade(subjectId, grade)
+                val questionsJsonStr = try {
+                    val colIdx = getColumnIndex(COLUMN_QUESTIONS)
+                    if (colIdx != -1) getString(colIdx) else null
+                } catch (_: Exception) {
+                    null
+                }
+
+                val questions = mutableListOf<Question>()
+                if (!questionsJsonStr.isNullOrEmpty()) {
+                    try {
+                        val qArr = JSONArray(questionsJsonStr)
+                        for (i in 0 until qArr.length()) {
+                            val qObj = qArr.getJSONObject(i)
+                            val opts = mutableListOf<String>()
+                            val optsArr = qObj.optJSONArray("options")
+                            if (optsArr != null) {
+                                for (j in 0 until optsArr.length()) {
+                                    opts.add(optsArr.getString(j))
+                                }
+                            }
+                            val optImgs = mutableListOf<String>()
+                            val optImgsArr = qObj.optJSONArray("option_images")
+                            if (optImgsArr != null) {
+                                for (j in 0 until optImgsArr.length()) {
+                                    optImgs.add(optImgsArr.getString(j))
+                                }
+                            }
+                            questions.add(
+                                Question(
+                                    id = qObj.optInt("id", i + 1),
+                                    prompt = qObj.optString("prompt", ""),
+                                    options = opts,
+                                    correctAnswerIndex = qObj.optInt("correct_answer_index", 0),
+                                    explanation = qObj.optString("explanation", ""),
+                                    subjectId = qObj.optString("subject_id", subjectId),
+                                    gradeLevel = qObj.optInt("grade_level", grade),
+                                    imageUrl = qObj.optString("image_url", "").ifBlank { null },
+                                    optionImages = optImgs.ifEmpty { null }
+                                )
+                            )
+                        }
+                    } catch (_: Exception) {}
+                }
 
                 resultsList.add(
                     ExamResult(
