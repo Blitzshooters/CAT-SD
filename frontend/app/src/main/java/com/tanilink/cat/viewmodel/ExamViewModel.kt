@@ -166,17 +166,13 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
     fun loadHistoryFromDatabase() {
         viewModelScope.launch(Dispatchers.IO) {
             val username = prefs.getString("username", "") ?: ""
-            val savedHistory = if (_isAdmin.value) {
-                dbHelper.getAllExamResults()
-            } else {
-                dbHelper.getExamResultsForStudent(_studentName.value)
-            }
+            val savedHistory = dbHelper.getExamResultsForStudent(_studentName.value)
             _examHistory.value = savedHistory
 
             // Sync with backend: remove local records that admin deleted from backend
             if (username.isNotBlank() && !_isAdmin.value) {
-                val backendEntries = CatApiClient.getExamHistoryFromBackend(username)
-                if (backendEntries != null) {
+                val backendEntries = CatApiClient.getExamHistoryFromBackend(username, _jwtToken.value, _studentName.value)
+                if (backendEntries != null && backendEntries.isNotEmpty()) {
                     // Find local records NOT in backend (admin deleted them)
                     val deletedLocally = savedHistory.filter { local ->
                         val localSubjectId = local.subjectId
@@ -205,7 +201,8 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
         isAdminUser: Boolean = false,
         username: String = "",
         nomorInduk: String = "",
-        serverAvatar: String = ""
+        serverAvatar: String = "",
+        grade: Int = 1
     ) {
         val (resolvedAvatar, customUrl) = resolveAvatar(serverAvatar, avatar)
 
@@ -216,6 +213,9 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
         _jwtToken.value = token
         _isAdmin.value = isAdminUser
         _isLoggedIn.value = true
+        if (grade in 1..6) {
+            _selectedGrade.value = grade
+        }
         _currentScreen.value = ScreenState.HOME
 
         prefs.edit()
@@ -227,6 +227,7 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
             .putString("avatar_id", resolvedAvatar.id)
             .putString("custom_avatar_url", customUrl)
             .putString("username", username)
+            .putInt("selected_grade", _selectedGrade.value)
             .apply()
 
         loadHistoryFromDatabase()
@@ -237,12 +238,15 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
         _isLoggedIn.value = false
         _isAdmin.value = false
         _jwtToken.value = ""
+        _studentName.value = ""
         _nomorInduk.value = ""
         _customAvatarUrl.value = ""
+        _examHistory.value = emptyList()
 
         prefs.edit()
             .putBoolean("is_logged_in", false)
             .remove("jwt_token")
+            .remove("student_name")
             .remove("nomor_induk")
             .remove("custom_avatar_url")
             .apply()
@@ -646,6 +650,7 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
         // Save permanently to SQLite Database & Backend MySQL
         viewModelScope.launch(Dispatchers.IO) {
             dbHelper.saveExamResult(_studentName.value, result)
+            val username = prefs.getString("username", "") ?: ""
             CatApiClient.submitExamResult(
                 subjectId = subject.id,
                 grade = _selectedGrade.value,
@@ -655,7 +660,9 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
                 unansweredCount = unansweredCount,
                 totalQuestions = totalQ,
                 timeSpentSeconds = _elapsedTimeSeconds.value,
-                studentName = _studentName.value
+                studentName = _studentName.value,
+                username = username,
+                jwtToken = _jwtToken.value
             )
         }
 

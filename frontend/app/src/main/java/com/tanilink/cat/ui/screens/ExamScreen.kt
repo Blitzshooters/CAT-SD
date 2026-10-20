@@ -844,7 +844,7 @@ fun ExamScreen(
             },
             text = {
                 Column {
-                    Text("Apakah kamu yakin ingin mengakhiri ujian 20 soal ini?")
+                    Text("Apakah kamu yakin ingin mengakhiri ujian ${questions.size} soal ini?")
                     Spacer(modifier = Modifier.height(12.dp))
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),

@@ -43,7 +43,7 @@ fun ResultScreen(
     }
 
     val badgeSubtitle = when (starCount) {
-        3 -> "Kamu berhasil menjawab 20 soal dengan sangat memuaskan!"
+        3 -> "Kamu berhasil menjawab ${result.totalQuestions} soal dengan sangat memuaskan!"
         2 -> "Hasil yang bagus! Terus tingkatkan belajar kamu ya!"
         else -> "Jangan menyerah, mari pelajari kembali pembahasan soalnya."
     }
@@ -231,7 +231,7 @@ fun ResultScreen(
             ) {
                 Icon(Icons.Default.MenuBook, contentDescription = null, tint = Color.White)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Lihat Pembahasan 20 Soal", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)
+                Text("Lihat Pembahasan ${result.totalQuestions} Soal", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)
             }
 
             OutlinedButton(

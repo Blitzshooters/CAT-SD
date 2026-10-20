@@ -27,7 +27,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
-    onLoginSuccess: (String, UserAvatar, String, Boolean, String, String, String) -> Unit // name, avatar, token, isAdmin, username, nomorInduk, serverAvatar
+    onLoginSuccess: (String, UserAvatar, String, Boolean, String, String, String, Int) -> Unit // name, avatar, token, isAdmin, username, nomorInduk, serverAvatar, grade
 ) {
     var usernameInput by remember { mutableStateOf("") }
     var passwordInput by remember { mutableStateOf("") }
@@ -198,7 +198,8 @@ fun LoginScreen(
                                             result.isAdmin,
                                             trimmedUsername,
                                             result.nomorInduk,
-                                            result.avatar
+                                            result.avatar,
+                                            result.grade
                                         )
                                     } else {
                                         errorMessage = "Username atau password salah. Pastikan akun terdaftar di database server."

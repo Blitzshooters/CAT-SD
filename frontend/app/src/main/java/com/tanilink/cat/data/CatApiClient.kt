@@ -39,7 +39,8 @@ object CatApiClient {
         val token: String,
         val isAdmin: Boolean,
         val nomorInduk: String,
-        val avatar: String
+        val avatar: String,
+        val grade: Int = 1
     )
 
     // 10.0.2.2 connects to host computer localhost from Android Emulator.
@@ -88,7 +89,8 @@ object CatApiClient {
                         val isAdmin = userObj.optBoolean("is_admin", false)
                         val nomorInduk = userObj.optString("nomor_induk", "")
                         val avatar = userObj.optString("avatar", "")
-                        return@withContext LoginResult(name, token, isAdmin, nomorInduk, avatar)
+                        val grade = userObj.optInt("grade", 1)
+                        return@withContext LoginResult(name, token, isAdmin, nomorInduk, avatar, grade)
                     }
                 }
             } catch (_: Exception) {
@@ -466,36 +468,53 @@ object CatApiClient {
         unansweredCount: Int,
         totalQuestions: Int,
         timeSpentSeconds: Long,
-        studentName: String
+        studentName: String,
+        username: String = "",
+        jwtToken: String = ""
     ): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val url = URL("$currentBaseUrl/exam/submit")
-            val conn = (url.openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
-                connectTimeout = 3000
-                readTimeout = 4000
-                doOutput = true
-                setRequestProperty("Content-Type", "application/json")
-                setRequestProperty("Accept", "application/json")
-            }
+        val urlsToTry = getCandidateUrls()
+        for (baseUrl in urlsToTry) {
+            try {
+                val url = URL("$baseUrl/exam/submit")
+                val conn = (url.openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    connectTimeout = 4000
+                    readTimeout = 5000
+                    doOutput = true
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Accept", "application/json")
+                    if (jwtToken.isNotBlank()) {
+                        setRequestProperty("Authorization", "Bearer $jwtToken")
+                    }
+                }
 
-            val body = JSONObject().apply {
-                put("subject_id", subjectId.toIntOrNull() ?: 1)
-                put("grade", grade)
-                put("score", score)
-                put("correct_count", correctCount)
-                put("wrong_count", wrongCount)
-                put("unanswered_count", unansweredCount)
-                put("total_questions", totalQuestions)
-                put("time_spent_seconds", timeSpentSeconds)
-                put("username", studentName.lowercase().replace(" ", ""))
-            }
+                val body = JSONObject().apply {
+                    put("subject_id", subjectId.toIntOrNull() ?: 1)
+                    put("grade", grade)
+                    put("score", score)
+                    put("correct_count", correctCount)
+                    put("wrong_count", wrongCount)
+                    put("unanswered_count", unansweredCount)
+                    put("total_questions", totalQuestions)
+                    put("time_spent_seconds", timeSpentSeconds)
+                    put("student_name", studentName.trim())
+                    if (username.isNotBlank()) {
+                        put("username", username.trim())
+                    } else {
+                        put("username", studentName.lowercase().replace(" ", ""))
+                    }
+                }
 
-            OutputStreamWriter(conn.outputStream).use { it.write(body.toString()) }
-            return@withContext conn.responseCode in 200..299
-        } catch (_: Exception) {
-            false
+                OutputStreamWriter(conn.outputStream).use { it.write(body.toString()) }
+                if (conn.responseCode in 200..299) {
+                    currentBaseUrl = baseUrl
+                    return@withContext true
+                }
+            } catch (_: Exception) {
+                // Coba URL berikutnya
+            }
         }
+        false
     }
 
     /**
@@ -503,16 +522,27 @@ object CatApiClient {
      * Returns list of (subjectId, grade) pairs that currently exist in backend.
      * Returns null if backend is unreachable.
      */
-    suspend fun getExamHistoryFromBackend(username: String): List<Pair<String, Int>>? = withContext(Dispatchers.IO) {
+    suspend fun getExamHistoryFromBackend(
+        username: String,
+        jwtToken: String = "",
+        studentName: String = ""
+    ): List<Pair<String, Int>>? = withContext(Dispatchers.IO) {
         val urlsToTry = getCandidateUrls()
         for (baseUrl in urlsToTry) {
             try {
-                val url = URL("$baseUrl/exam/history?username=${username.trim()}")
+                val queryParams = StringBuilder("username=${username.trim()}")
+                if (studentName.isNotBlank()) {
+                    queryParams.append("&student_name=").append(java.net.URLEncoder.encode(studentName.trim(), "UTF-8"))
+                }
+                val url = URL("$baseUrl/exam/history?$queryParams")
                 val conn = (url.openConnection() as HttpURLConnection).apply {
                     requestMethod = "GET"
                     connectTimeout = 4000
                     readTimeout = 5000
                     setRequestProperty("Accept", "application/json")
+                    if (jwtToken.isNotBlank()) {
+                        setRequestProperty("Authorization", "Bearer $jwtToken")
+                    }
                 }
 
                 if (conn.responseCode == 200) {

@@ -69,8 +69,8 @@ class MainActivity : ComponentActivity() {
                 ) {
                     if (!isLoggedIn) {
                         LoginScreen(
-                            onLoginSuccess = { name, avatar, token, isAdminUser, username, nomorInduk, serverAvatar ->
-                                viewModel.login(name, avatar, token, isAdminUser, username, nomorInduk, serverAvatar)
+                            onLoginSuccess = { name, avatar, token, isAdminUser, username, nomorInduk, serverAvatar, grade ->
+                                viewModel.login(name, avatar, token, isAdminUser, username, nomorInduk, serverAvatar, grade)
                             }
                         )
                     } else {

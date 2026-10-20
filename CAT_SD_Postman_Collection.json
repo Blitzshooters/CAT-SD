@@ -1,0 +1,976 @@
+{
+	"info": {
+		"_postman_id": "cat-sd-api-collection-v1",
+		"name": "CAT SD API - Complete Collection",
+		"description": "Koleksi lengkap Postman API untuk proyek Computer Assisted Test Sekolah Dasar (CAT-SD). Mencakup Autentikasi JWT, Pengambilan Ujian & Bank Soal, AI Proctoring, Manajemen Profil, serta Panel CRUD Admin.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://127.0.0.1:8000/api",
+			"type": "string"
+		},
+		{
+			"key": "jwt_token",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "1. Autentikasi (JWT Auth)",
+			"item": [
+				{
+					"name": "Login (Siswa / Guru)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.token) {",
+									"        pm.collectionVariables.set(\"jwt_token\", jsonData.token);",
+									"        console.log(\"JWT Token otomatis disimpan ke variabel koleksi!\");",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "login"]
+						},
+						"description": "Endpoint login untuk siswa atau guru/admin. Mengembalikan token JWT yang otomatis disimpan di collection variable 'jwt_token'."
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Profile (Me)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/auth/me",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "me"]
+						},
+						"description": "Mendapatkan profil user yang sedang login berdasarkan Bearer token."
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh Token",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/auth/refresh",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "refresh"]
+						},
+						"description": "Memperbarui token JWT yang sudah mendekati waktu kadaluarsa."
+					},
+					"response": []
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/auth/logout",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "logout"]
+						},
+						"description": "Menghapus dan meng-invalidasi sesi JWT token saat ini."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "2. Ujian & Bank Soal (Exam Engine)",
+			"item": [
+				{
+					"name": "Get Daftar Mata Pelajaran (By Grade)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/subjects?grade=5",
+							"host": ["{{base_url}}"],
+							"path": ["subjects"],
+							"query": [
+								{
+									"key": "grade",
+									"value": "5",
+									"description": "Tingkat kelas SD (1-6) atau 'all'"
+								}
+							]
+						},
+						"description": "Mengambil daftar mata pelajaran yang aktif untuk tingkat kelas tertentu."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Soal Ujian (Questions by Subject ID)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/subjects/17/questions?limit=20",
+							"host": ["{{base_url}}"],
+							"path": ["subjects", "17", "questions"],
+							"query": [
+								{
+									"key": "limit",
+									"value": "20",
+									"description": "Jumlah butir soal yang diambil secara acak"
+								}
+							]
+						},
+						"description": "Mengambil butir soal acak beserta pilihan jawaban dan gambar (jika ada) untuk ujian."
+					},
+					"response": []
+				},
+				{
+					"name": "Verifikasi Kode Remedi (Buka Kunci)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"subject_id\": 17,\n  \"code\": \"REMEDI5\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/exam/verify-remedy",
+							"host": ["{{base_url}}"],
+							"path": ["exam", "verify-remedy"]
+						},
+						"description": "Memvalidasi kode remedi pengawas jika ujian terkunci akibat pelanggaran batas toleransi kecurangan atau saat ingin mengerjakan ulang ujian."
+					},
+					"response": []
+				},
+				{
+					"name": "Submit Hasil Ujian",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"student_name\": \"Budi Santoso\",\n  \"subject_id\": 17,\n  \"grade\": 5,\n  \"score\": 85,\n  \"correct_count\": 17,\n  \"wrong_count\": 3,\n  \"unanswered_count\": 0,\n  \"total_questions\": 20,\n  \"time_spent_seconds\": 1420,\n  \"user_answers\": {\n    \"0\": 1,\n    \"1\": 0,\n    \"2\": 2\n  },\n  \"proctoring_summary\": {\n    \"total_violations\": 1,\n    \"look_away_count\": 1\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/exam/submit",
+							"host": ["{{base_url}}"],
+							"path": ["exam", "submit"]
+						},
+						"description": "Mengirimkan lembar jawaban dan skor hasil ujian siswa ke server."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Riwayat Ujian Siswa",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/exam/history?username=budi123",
+							"host": ["{{base_url}}"],
+							"path": ["exam", "history"],
+							"query": [
+								{
+									"key": "username",
+									"value": "budi123",
+									"description": "Username siswa untuk sinkronisasi riwayat"
+								}
+							]
+						},
+						"description": "Mengambil daftar riwayat pengerjaan ujian siswa."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Kode Ganti Kelas",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/class-code",
+							"host": ["{{base_url}}"],
+							"path": ["class-code"]
+						},
+						"description": "Mendapatkan kode sistem saat ini untuk verifikasi pindah kelas."
+					},
+					"response": []
+				},
+				{
+					"name": "Verifikasi Kode Ganti Kelas",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"code\": \"KELAS2026\",\n  \"grade\": 6\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/class-code/verify",
+							"host": ["{{base_url}}"],
+							"path": ["class-code", "verify"]
+						},
+						"description": "Memvalidasi kode yang dimasukkan siswa ketika hendak berpindah tingkat kelas."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "3. AI Proctoring",
+			"item": [
+				{
+					"name": "Log Pelanggaran Proctoring",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"exam_id\": \"17\",\n  \"student_name\": \"Budi Santoso\",\n  \"violation_type\": \"LOOKING_AWAY\",\n  \"description\": \"Pandangan menoleh ke luar layar (rotY=28.4°)\",\n  \"timestamp\": 1729384920000\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/proctoring/log",
+							"host": ["{{base_url}}"],
+							"path": ["proctoring", "log"]
+						},
+						"description": "Mencatat event pelanggaran kamera pengawas (LOOKING_AWAY, NO_FACE, MULTIPLE_FACES)."
+					},
+					"response": []
+				},
+				{
+					"name": "Upload Snapshot Bukti Pelanggaran",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "snapshot_file",
+									"type": "file",
+									"description": "Foto kamera saat pelanggaran terdeteksi"
+								},
+								{
+									"key": "exam_id",
+									"value": "17",
+									"type": "text"
+								},
+								{
+									"key": "student_name",
+									"value": "Budi Santoso",
+									"type": "text"
+								},
+								{
+									"key": "violation_type",
+									"value": "LOOKING_AWAY",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/proctoring/snapshot",
+							"host": ["{{base_url}}"],
+							"path": ["proctoring", "snapshot"]
+						},
+						"description": "Mengirim foto tangkapan kamera bukti kecurangan siswa ke server."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Session Logs by Exam ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/proctoring/session/17",
+							"host": ["{{base_url}}"],
+							"path": ["proctoring", "session", "17"]
+						},
+						"description": "Melihat riwayat log pelanggaran untuk ID ujian tertentu."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "4. Pengguna & Profil (User Profile)",
+			"item": [
+				{
+					"name": "Update Data Profil Siswa",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"budi123\",\n  \"name\": \"Budi Santoso Wibowo\",\n  \"avatar\": \"av2\",\n  \"grade\": 5\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/user/profile",
+							"host": ["{{base_url}}"],
+							"path": ["user", "profile"]
+						},
+						"description": "Memperbarui nama, avatar preset, atau data profil siswa."
+					},
+					"response": []
+				},
+				{
+					"name": "Ganti Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"budi123\",\n  \"old_password\": \"unpkediri\",\n  \"new_password\": \"budi2026\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/user/change-password",
+							"host": ["{{base_url}}"],
+							"path": ["user", "change-password"]
+						},
+						"description": "Mengganti kata sandi akun pengguna."
+					},
+					"response": []
+				},
+				{
+					"name": "Upload Foto Avatar Kustom",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "avatar_file",
+									"type": "file",
+									"description": "File gambar avatar siswa"
+								},
+								{
+									"key": "username",
+									"value": "budi123",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/user/upload-avatar",
+							"host": ["{{base_url}}"],
+							"path": ["user", "upload-avatar"]
+						},
+						"description": "Mengunggah foto profil custom pengguna dari galeri/kamera."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "5. Panel Admin Guru (CRUD Operations)",
+			"item": [
+				{
+					"name": "Ujian - Tambah Ujian Baru (Include Upload Ikon)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "title",
+									"value": "Ilmu Pengetahuan Sosial (IPS)",
+									"type": "text"
+								},
+								{
+									"key": "grade",
+									"value": "5",
+									"type": "text"
+								},
+								{
+									"key": "duration_minutes",
+									"value": "45",
+									"type": "text"
+								},
+								{
+									"key": "max_violations",
+									"value": "3",
+									"type": "text"
+								},
+								{
+									"key": "remedy_code",
+									"value": "REMEDI5IPS",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "Ujian Pengetahuan Keragaman Budaya & Geografi Indonesia",
+									"type": "text"
+								},
+								{
+									"key": "icon_name",
+									"value": "menu_book",
+									"type": "text"
+								},
+								{
+									"key": "icon_file",
+									"type": "file",
+									"description": "Opsional: File gambar/ikon ujian"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/subjects",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "subjects"]
+						},
+						"description": "Menambahkan mata pelajaran / ujian baru beserta upload ikon custom."
+					},
+					"response": []
+				},
+				{
+					"name": "Ujian - Update Pengaturan Ujian",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "_method",
+									"value": "PUT",
+									"type": "text"
+								},
+								{
+									"key": "title",
+									"value": "Matematika Geometri & Pecahan",
+									"type": "text"
+								},
+								{
+									"key": "grade",
+									"value": "5",
+									"type": "text"
+								},
+								{
+									"key": "duration_minutes",
+									"value": "60",
+									"type": "text"
+								},
+								{
+									"key": "max_violations",
+									"value": "4",
+									"type": "text"
+								},
+								{
+									"key": "remedy_code",
+									"value": "REMEDI5MTK",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "Ujian Matematika Bab 1 sampai 4",
+									"type": "text"
+								},
+								{
+									"key": "icon_file",
+									"type": "file",
+									"description": "Opsional: Ganti file gambar ikon ujian"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/subjects/17",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "subjects", "17"]
+						},
+						"description": "Memperbarui konfigurasi ujian (durasi, pelanggaran, kode remedi, ikon)."
+					},
+					"response": []
+				},
+				{
+					"name": "Ujian - Hapus Ujian",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/admin/subjects/17",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "subjects", "17"]
+						},
+						"description": "Menghapus ujian beserta seluruh butir bank soal di dalamnya."
+					},
+					"response": []
+				},
+				{
+					"name": "Soal - Tambah Butir Soal (Dinamis >ABCD)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "subject_id",
+									"value": "17",
+									"type": "text"
+								},
+								{
+									"key": "prompt",
+									"value": "Berapakah hasil dari 25 x 4 + 50?",
+									"type": "text"
+								},
+								{
+									"key": "options[]",
+									"value": "120",
+									"type": "text"
+								},
+								{
+									"key": "options[]",
+									"value": "130",
+									"type": "text"
+								},
+								{
+									"key": "options[]",
+									"value": "150",
+									"type": "text"
+								},
+								{
+									"key": "options[]",
+									"value": "160",
+									"type": "text"
+								},
+								{
+									"key": "options[]",
+									"value": "180",
+									"type": "text"
+								},
+								{
+									"key": "correct_answer_index",
+									"value": "2",
+									"type": "text"
+								},
+								{
+									"key": "explanation",
+									"value": "25 x 4 = 100, lalu 100 + 50 = 150 (Jawaban C)",
+									"type": "text"
+								},
+								{
+									"key": "question_image_file",
+									"type": "file",
+									"description": "Opsional: Gambar pendukung soal"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/questions",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "questions"]
+						},
+						"description": "Menambahkan butir soal baru dengan dukungan pilihan dinamis (A, B, C, D, E, dst.) dan gambar soal."
+					},
+					"response": []
+				},
+				{
+					"name": "Soal - Update Butir Soal",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "_method",
+									"value": "PUT",
+									"type": "text"
+								},
+								{
+									"key": "prompt",
+									"value": "Perhatikan persamaan berikut: Berapakah hasil dari 25 x 4 + 50?",
+									"type": "text"
+								},
+								{
+									"key": "options[]",
+									"value": "100",
+									"type": "text"
+								},
+								{
+									"key": "options[]",
+									"value": "125",
+									"type": "text"
+								},
+								{
+									"key": "options[]",
+									"value": "150",
+									"type": "text"
+								},
+								{
+									"key": "options[]",
+									"value": "175",
+									"type": "text"
+								},
+								{
+									"key": "correct_answer_index",
+									"value": "2",
+									"type": "text"
+								},
+								{
+									"key": "explanation",
+									"value": "25 dikali 4 sama dengan 100, ditambah 50 menghasilkan 150.",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/questions/1",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "questions", "1"]
+						},
+						"description": "Memperbarui pertanyaan, opsi pilihan, atau kunci jawaban butir soal."
+					},
+					"response": []
+				},
+				{
+					"name": "Soal - Hapus Butir Soal",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/admin/questions/1",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "questions", "1"]
+						},
+						"description": "Menghapus butir soal tertentu."
+					},
+					"response": []
+				},
+				{
+					"name": "User - Tambah Akun Siswa/Guru",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Siti Rahmawati\",\n  \"username\": \"siti123\",\n  \"nomor_induk\": \"202401015\",\n  \"password\": \"siti2026\",\n  \"grade\": 5,\n  \"avatar\": \"av1\",\n  \"is_admin\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/users",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "users"]
+						},
+						"description": "Mendaftarkan akun siswa atau guru baru."
+					},
+					"response": []
+				},
+				{
+					"name": "User - Update Akun",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Siti Rahmawati Putri\",\n  \"username\": \"siti123\",\n  \"nomor_induk\": \"202401015\",\n  \"grade\": 5,\n  \"avatar\": \"av3\",\n  \"is_admin\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/users/2",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "users", "2"]
+						},
+						"description": "Memperbarui data akun pengguna."
+					},
+					"response": []
+				},
+				{
+					"name": "User - Hapus Akun",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/admin/users/2",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "users", "2"]
+						},
+						"description": "Menghapus akun pengguna dari database."
+					},
+					"response": []
+				},
+				{
+					"name": "Riwayat - Hapus Hasil Ujian Siswa",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/admin/exam-results/1",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "exam-results", "1"]
+						},
+						"description": "Menghapus catatan hasil ujian siswa tertentu (misal jika diberi izin ujian ulang)."
+					},
+					"response": []
+				},
+				{
+					"name": "Setting - Update Kode Ganti Kelas",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"code\": \"KELAS2026\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/settings/class-change-code",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "settings", "class-change-code"]
+						},
+						"description": "Mengubah kode rahasia yang dibutuhkan siswa saat hendak berpindah tingkat kelas."
+					},
+					"response": []
+				},
+				{
+					"name": "Proctoring - Bersihkan Semua Log Pelanggaran",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/admin/proctoring/clear-logs",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "proctoring", "clear-logs"]
+						},
+						"description": "Mengosongkan seluruh riwayat log dan snapshot pelanggaran proctoring AI."
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

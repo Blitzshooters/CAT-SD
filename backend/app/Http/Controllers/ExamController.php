@@ -146,19 +146,38 @@ class ExamController extends Controller
             ], 422);
         }
 
-        $userId = 1;
+        $userId = null;
         try {
             if ($user = JWTAuth::parseToken()->authenticate()) {
                 $userId = $user->id;
             }
         } catch (\Exception $e) {
-            // Fallback for direct student submission
-            if ($request->filled('username')) {
-                $found = User::where('username', $request->input('username'))->first();
-                if ($found) {
-                    $userId = $found->id;
-                }
+            // Token tidak ada atau kedaluwarsa, gunakan fallback
+        }
+
+        if (!$userId && $request->filled('username')) {
+            $found = User::where('username', trim($request->input('username')))->first();
+            if ($found) {
+                $userId = $found->id;
             }
+        }
+
+        if (!$userId && $request->filled('student_name')) {
+            $found = User::where('name', trim($request->input('student_name')))->first();
+            if ($found) {
+                $userId = $found->id;
+            }
+        }
+
+        if (!$userId && $request->filled('username')) {
+            $found = User::whereRaw('LOWER(REPLACE(name, " ", "")) = ?', [strtolower(str_replace(' ', '', $request->input('username')))])->first();
+            if ($found) {
+                $userId = $found->id;
+            }
+        }
+
+        if (!$userId) {
+            $userId = 1; // Fallback darurat terakhir
         }
 
         $result = ExamResult::create([
@@ -243,18 +262,41 @@ class ExamController extends Controller
      */
     public function history(Request $request): JsonResponse
     {
-        $userId = 1;
+        $userId = null;
         try {
             if ($user = JWTAuth::parseToken()->authenticate()) {
                 $userId = $user->id;
             }
         } catch (\Exception $e) {
-            if ($request->filled('username')) {
-                $found = User::where('username', $request->input('username'))->first();
-                if ($found) {
-                    $userId = $found->id;
-                }
+            // Token tidak ada atau kedaluwarsa, gunakan fallback
+        }
+
+        if (!$userId && $request->filled('username')) {
+            $found = User::where('username', trim($request->input('username')))->first();
+            if ($found) {
+                $userId = $found->id;
             }
+        }
+
+        if (!$userId && $request->filled('student_name')) {
+            $found = User::where('name', trim($request->input('student_name')))->first();
+            if ($found) {
+                $userId = $found->id;
+            }
+        }
+
+        if (!$userId && $request->filled('username')) {
+            $found = User::whereRaw('LOWER(REPLACE(name, " ", "")) = ?', [strtolower(str_replace(' ', '', $request->input('username')))])->first();
+            if ($found) {
+                $userId = $found->id;
+            }
+        }
+
+        if (!$userId) {
+            return response()->json([
+                'success' => true,
+                'history' => [],
+            ]);
         }
 
         $history = ExamResult::where('user_id', $userId)
