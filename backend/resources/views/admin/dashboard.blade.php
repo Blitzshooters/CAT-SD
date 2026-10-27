@@ -3,12 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Admin CAT SD - Panel Manajemen Ujian & Bank Soal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        @media print {
+            @page {
+                size: A4 landscape;
+                margin: 10mm 8mm;
+            }
+            header, nav, .no-print, [class*="no-print"] {
+                display: none !important;
+            }
+            body {
+                background: white !important;
+                color: #0f172a !important;
+                font-family: 'Plus Jakarta Sans', Arial, sans-serif !important;
+                font-size: 10px !important;
+                line-height: 1.25 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            main {
+                max-width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .shadow-sm, .shadow-md, .shadow-lg, .shadow-2xl {
+                box-shadow: none !important;
+            }
+            .rounded-3xl, .rounded-2xl, .rounded-xl {
+                border-radius: 4px !important;
+            }
+            .border, .border-slate-200 {
+                border-color: #cbd5e1 !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+            .overflow-x-auto {
+                overflow: visible !important;
+            }
+            table {
+                border-collapse: collapse !important;
+                width: 100% !important;
+                page-break-inside: auto;
+                font-size: 9.5px !important;
+            }
+            tr {
+                page-break-inside: avoid !important;
+                page-break-after: auto !important;
+            }
+            thead {
+                display: table-header-group !important;
+            }
+            th, td {
+                border: 1px solid #94a3b8 !important;
+                padding: 4px 6px !important;
+                color: #0f172a !important;
+            }
+            th {
+                background-color: #f1f5f9 !important;
+                font-weight: 800 !important;
+                text-align: center !important;
+            }
+            .badge-print {
+                border: 1px solid #64748b !important;
+                background: #f8fafc !important;
+                color: #0f172a !important;
+                font-weight: 700 !important;
+                padding: 1px 4px !important;
+            }
+            .student-detail-subrow {
+                display: none !important;
+            }
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
@@ -55,7 +129,7 @@
 
         <!-- Flash Message -->
         @if(session('success'))
-            <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl shadow-sm flex items-center justify-between">
+            <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl shadow-sm flex items-center justify-between no-print">
                 <div class="flex items-center gap-2 font-medium">
                     <i class="fa-solid fa-circle-check text-emerald-600 text-lg"></i>
                     <span>{{ session('success') }}</span>
@@ -65,7 +139,7 @@
         @endif
 
         @if(isset($errors) && $errors->any())
-            <div class="bg-rose-50 border border-rose-200 text-rose-800 px-4 py-3 rounded-xl shadow-sm">
+            <div class="bg-rose-50 border border-rose-200 text-rose-800 px-4 py-3 rounded-xl shadow-sm no-print">
                 <div class="flex items-center gap-2 font-semibold mb-1">
                     <i class="fa-solid fa-triangle-exclamation text-rose-600"></i>
                     <span>Terjadi kesalahan input:</span>
@@ -78,8 +152,8 @@
             </div>
         @endif
 
-        <!-- Top Navigation Tabs (Ujian & Bank Soal, Monitoring AI Proctoring, Manajemen Akun & Password) -->
-        <div class="flex items-center gap-2 sm:gap-3 border-b border-slate-200 pb-3 flex-wrap">
+        <!-- Top Navigation Tabs (Ujian & Bank Soal, Monitoring AI Proctoring, Rekap Nilai Per Kelas, Manajemen Akun) -->
+        <div class="flex items-center gap-2 sm:gap-3 border-b border-slate-200 pb-3 flex-wrap no-print">
             <a href="{{ route('admin.dashboard', ['tab' => 'exams', 'grade' => $grade]) }}"
                class="px-5 py-2.5 rounded-2xl text-xs font-extrabold transition flex items-center gap-2 {{ ($tab ?? 'exams') === 'exams' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200' }}">
                 <i class="fa-solid fa-graduation-cap text-sm"></i> Bank Soal & Ujian
@@ -88,6 +162,11 @@
                class="px-5 py-2.5 rounded-2xl text-xs font-extrabold transition flex items-center gap-2 {{ ($tab ?? 'exams') === 'monitoring' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200' }}">
                 <i class="fa-solid fa-shield-halved text-sm {{ ($tab ?? 'exams') === 'monitoring' ? 'text-white' : 'text-amber-500' }}"></i> Monitoring AI Proctoring & Hasil Ujian
                 <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ ($tab ?? 'exams') === 'monitoring' ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-700' }}">{{ $stats['total_violations'] }} Log</span>
+            </a>
+            <a href="{{ route('admin.dashboard', ['tab' => 'recap', 'recap_grade' => $recapGrade]) }}"
+               class="px-5 py-2.5 rounded-2xl text-xs font-extrabold transition flex items-center gap-2 {{ ($tab ?? 'exams') === 'recap' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200' }}">
+                <i class="fa-solid fa-chart-column text-sm {{ ($tab ?? 'exams') === 'recap' ? 'text-white' : 'text-indigo-600' }}"></i> Rekap Nilai Per Kelas
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ ($tab ?? 'exams') === 'recap' ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-700' }}">6 Kelas SD</span>
             </a>
             <a href="{{ route('admin.dashboard', ['tab' => 'users']) }}"
                class="px-5 py-2.5 rounded-2xl text-xs font-extrabold transition flex items-center gap-2 {{ ($tab ?? 'exams') === 'users' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200' }}">
@@ -196,6 +275,11 @@
 
                             <!-- Badges for settings -->
                             <div class="mt-3 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2 text-[11px]">
+                                <div class="bg-indigo-50 text-indigo-700 px-2 py-1 rounded-lg flex items-center gap-1 font-semibold col-span-2">
+                                    <i class="fa-solid fa-shuffle text-[10px] text-indigo-500"></i>
+                                    <span>Tampil per Sesi: <strong>{{ min($subj->max_questions ?? 20, $subj->questions_count) }} Soal Acak</strong></span>
+                                    <span class="text-[10px] text-indigo-400 font-normal ml-auto">({{ $subj->questions_count }} di bank)</span>
+                                </div>
                                 <div class="bg-rose-50 text-rose-700 px-2 py-1 rounded-lg flex items-center gap-1 font-semibold">
                                     <i class="fa-solid fa-ban text-[10px]"></i>
                                     <span>Maks: <strong>{{ $subj->max_violations ?? 3 }}x</strong></span>
@@ -207,7 +291,7 @@
                             </div>
 
                             <div class="mt-2 flex items-center justify-between text-xs text-slate-500">
-                                <span><i class="fa-solid fa-layer-group text-slate-400"></i> {{ $subj->questions_count }} Soal</span>
+                                <span><i class="fa-solid fa-layer-group text-slate-400"></i> Total {{ $subj->questions_count }} Soal</span>
                                 <a href="{{ route('admin.dashboard', ['grade' => $grade, 'subject_id' => $subj->id]) }}"
                                    class="font-bold text-indigo-600 hover:underline flex items-center gap-1">
                                     Kelola Soal <i class="fa-solid fa-arrow-right text-[10px]"></i>
@@ -235,6 +319,11 @@
                                 <h2 class="text-lg font-extrabold text-slate-900">{{ $selectedSubject->title }}</h2>
                             </div>
                             <p class="text-xs text-slate-500 mt-1 flex items-center gap-3 flex-wrap">
+                                <span class="inline-flex items-center gap-1 text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded-md">
+                                    <i class="fa-solid fa-shuffle text-indigo-500"></i>
+                                    Rotasi Acak: {{ $selectedSubject->max_questions ?? 20 }} Soal / Siswa
+                                </span>
+                                <span><i class="fa-solid fa-layer-group text-slate-400"></i> Bank Soal: <strong>{{ count($questions) }} Soal</strong></span>
                                 <span><i class="fa-regular fa-clock text-indigo-500"></i> Durasi: <strong>{{ $selectedSubject->duration_minutes }} Menit</strong></span>
                                 <span><i class="fa-solid fa-triangle-exclamation text-rose-500"></i> Batas Pelanggaran: <strong>{{ $selectedSubject->max_violations }}x</strong></span>
                                 <span><i class="fa-solid fa-key text-amber-500"></i> Kode Remedi: <code class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold">{{ $selectedSubject->remedy_code }}</code></span>
@@ -679,6 +768,327 @@
             </div>
 
         </section>
+        @elseif(($tab ?? 'exams') === 'recap')
+        <!-- ================= TAB: REKAP NILAI PER KELAS ================= -->
+        <section class="space-y-6">
+
+            <!-- Official Header Khusus Cetak / Print -->
+            <div class="print-only hidden mb-4 pb-3 border-b-2 border-slate-900">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="text-3xl">🎒</div>
+                        <div>
+                            <h1 class="text-base font-black uppercase tracking-wider text-slate-900 leading-tight">
+                                LAPORAN REKAPITULASI HASIL UJIAN SISWA
+                            </h1>
+                            <p class="text-xs font-bold text-slate-700">
+                                Computer Assisted Test (CAT) SD &bull; {{ $recapGrade ? 'Kelas ' . $recapGrade . ' SD' : 'Semua Tingkat Kelas (1 s.d. 6 SD)' }}
+                            </p>
+                            <p class="text-[10px] text-slate-500">
+                                Tahun Ajaran {{ date('Y') }}/{{ date('Y') + 1 }} &bull; Dokumen Evaluasi Hasil Belajar Resmi
+                            </p>
+                        </div>
+                    </div>
+                    <div class="text-right text-[10px] text-slate-600 space-y-0.5">
+                        <p class="font-extrabold text-xs text-indigo-900">
+                            {{ $recapGrade ? 'REKAP KELAS ' . $recapGrade . ' SD' : 'REKAP SELURUH KELAS SD' }}
+                        </p>
+                        <p>Jumlah Siswa: <strong>{{ $detailedStudents->count() }} Siswa</strong></p>
+                        <p>Waktu Cetak: {{ now()->translatedFormat('d F Y, H:i') }} WIB</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Banner -->
+            <div class="bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white p-6 rounded-3xl shadow-lg border border-indigo-700/50 flex flex-wrap items-center justify-between gap-4 no-print">
+                <div class="space-y-1">
+                    <div class="inline-flex items-center gap-2 bg-indigo-500/30 px-3 py-1 rounded-full text-xs font-bold text-amber-300 border border-amber-300/30">
+                        <i class="fa-solid fa-chart-bar"></i> Rekap Akademik
+                    </div>
+                    <h2 class="text-xl font-black tracking-tight text-white flex items-center gap-2.5">
+                        <i class="fa-solid fa-chart-column text-amber-400"></i>
+                        Rekap Nilai Ujian Per Kelas — Kelas 1 s.d. 6 SD
+                    </h2>
+                    <p class="text-xs text-indigo-200">
+                        Pantau akumulasi nilai, rata-rata, kelulusan, dan riwayat ujian seluruh siswa. Siap cetak pas format A4.
+                    </p>
+                </div>
+                <div class="flex items-center gap-2.5 flex-wrap">
+                    <button onclick="window.print()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition border border-indigo-400/40 flex items-center gap-2 shadow-md">
+                        <i class="fa-solid fa-print text-xs"></i> Cetak Rekap (Print A4)
+                    </button>
+                    @if($recapGrade)
+                    <a href="{{ route('admin.dashboard', ['tab' => 'recap']) }}" class="px-4 py-2 rounded-xl bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 font-bold text-xs transition border border-amber-400/30 flex items-center gap-2">
+                        <i class="fa-solid fa-table-list text-xs"></i> Tampilkan Semua Kelas
+                    </a>
+                    @endif
+                </div>
+            </div>
+
+            <!-- Filter Cepat Tingkat Kelas (Pill Bar) -->
+            <div class="flex items-center gap-2 overflow-x-auto pb-1 no-print">
+                <span class="text-xs font-extrabold text-slate-500 shrink-0 mr-1 flex items-center gap-1.5">
+                    <i class="fa-solid fa-filter text-indigo-600"></i> Filter Kelas:
+                </span>
+                <a href="{{ route('admin.dashboard', ['tab' => 'recap']) }}" 
+                   class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 {{ empty($recapGrade) ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-400' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200' }}">
+                    <i class="fa-solid fa-layer-group text-[11px]"></i> Semua Kelas (1-6 SD)
+                </a>
+                @for($k = 1; $k <= 6; $k++)
+                    <a href="{{ route('admin.dashboard', ['tab' => 'recap', 'recap_grade' => $k]) }}"
+                       class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 {{ (string)$recapGrade === (string)$k ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-400' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200' }}">
+                        <i class="fa-solid fa-school text-[11px]"></i> Kelas {{ $k }} SD
+                    </a>
+                @endfor
+            </div>
+
+            <!-- Grid Kartu Ringkasan Per Kelas (1-6 SD) -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 no-print">
+                @foreach($classRecaps as $g => $recap)
+                    @php
+                        $isSelected = ($recapGrade == $g);
+                        $passColor = $recap['pass_rate'] >= 75 ? 'emerald' : ($recap['pass_rate'] >= 50 ? 'amber' : 'rose');
+                        $gradients = [
+                            1 => ['from-blue-600','to-indigo-700'],
+                            2 => ['from-violet-600','to-purple-700'],
+                            3 => ['from-emerald-600','to-teal-700'],
+                            4 => ['from-orange-500','to-amber-600'],
+                            5 => ['from-rose-600','to-pink-700'],
+                            6 => ['from-indigo-600','to-sky-700'],
+                        ];
+                        $from = $gradients[$g][0] ?? 'from-slate-600';
+                        $to   = $gradients[$g][1] ?? 'to-slate-700';
+                    @endphp
+                    <a href="{{ route('admin.dashboard', ['tab' => 'recap', 'recap_grade' => $g]) }}"
+                       class="relative rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-200 group block {{ $isSelected ? 'ring-4 ring-offset-2 ring-indigo-400 scale-[1.02]' : '' }}">
+                        <div class="bg-gradient-to-br {{ $from }} {{ $to }} p-4 text-white space-y-3">
+                            <!-- Kelas Label -->
+                            <div class="flex items-center justify-between">
+                                <span class="text-2xl font-black leading-none">{{ $g }}</span>
+                                <div class="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+                                    <i class="fa-solid fa-school text-white text-sm"></i>
+                                </div>
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold text-white/80">Kelas {{ $g }} SD</p>
+                                <p class="text-lg font-black">{{ $recap['students_count'] }} Siswa</p>
+                            </div>
+
+                            <!-- Divider -->
+                            <div class="border-t border-white/20 pt-2 space-y-1 text-[11px]">
+                                <div class="flex justify-between">
+                                    <span class="text-white/70">Rata-Rata</span>
+                                    <span class="font-extrabold">{{ $recap['avg_score'] }}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-white/70">Lulus ≥70</span>
+                                    <span class="font-extrabold {{ $recap['pass_rate'] >= 70 ? 'text-emerald-300' : ($recap['pass_rate'] >= 50 ? 'text-amber-300' : 'text-rose-300') }}">
+                                        {{ $recap['pass_rate'] }}%
+                                    </span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-white/70">Ujian</span>
+                                    <span class="font-bold">{{ $recap['total_exams'] }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        @if($isSelected)
+                        <div class="absolute top-2 right-2 w-5 h-5 rounded-full bg-white flex items-center justify-center shadow">
+                            <i class="fa-solid fa-check text-indigo-700 text-[10px]"></i>
+                        </div>
+                        @endif
+                    </a>
+                @endforeach
+            </div>
+
+            <!-- Header Detail Siswa -->
+            <div class="flex flex-wrap items-center justify-between gap-3 no-print">
+                <div>
+                    <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                        <i class="fa-solid fa-users text-indigo-600"></i>
+                        {{ $recapGrade ? 'Rekap Detail Siswa — Kelas ' . $recapGrade . ' SD' : 'Rekap Nilai Siswa — Semua Tingkat Kelas (1 s.d. 6 SD)' }}
+                        <span class="text-sm font-bold text-slate-500">({{ $detailedStudents->count() }} Siswa)</span>
+                    </h3>
+                    <p class="text-xs text-slate-500 mt-0.5">
+                        {{ $recapGrade ? 'Menampilkan riwayat ujian dan akumulasi nilai siswa Kelas ' . $recapGrade . ' SD.' : 'Menampilkan akumulasi nilai dan riwayat ujian seluruh siswa dari Kelas 1 sampai 6 SD.' }}
+                    </p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="window.print()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition flex items-center gap-2 shadow-md">
+                        <i class="fa-solid fa-print text-xs"></i> Cetak Rekap {{ $recapGrade ? 'Kelas ' . $recapGrade : 'Semua Kelas' }}
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tabel Rekap Siswa Detail -->
+            <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs text-left recap-print-table">
+                        <thead class="bg-slate-50 text-slate-500 uppercase font-black text-[10px] border-b border-slate-200">
+                            <tr>
+                                <th class="py-3 px-3 text-center">#</th>
+                                <th class="py-3 px-3 text-left">Siswa</th>
+                                <th class="py-3 px-3 text-center">Kelas</th>
+                                <th class="py-3 px-3 text-center">Ujian<br>Diambil</th>
+                                <th class="py-3 px-3 text-center">Rata-Rata<br>Nilai</th>
+                                <th class="py-3 px-3 text-center">Nilai<br>Terbaik</th>
+                                <th class="py-3 px-3 text-center">Nilai<br>Terendah</th>
+                                <th class="py-3 px-3 text-center">Benar</th>
+                                <th class="py-3 px-3 text-center">Salah</th>
+                                <th class="py-3 px-3 text-center">Kosong</th>
+                                <th class="py-3 px-3 text-center">Pelanggaran</th>
+                                <th class="py-3 px-3 text-center">Status</th>
+                                <th class="py-3 px-3 text-center no-print">Detail</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @forelse($detailedStudents as $idx => $student)
+                                @php
+                                    $avg = $student['avg_score'];
+                                    $statusBg = $avg >= 70 ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : ($avg >= 50 ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-rose-100 text-rose-800 border-rose-200');
+                                    $statusText = $avg >= 70 ? 'Lulus' : ($avg >= 50 ? 'Perlu Bimbing' : 'Perlu Remedial');
+                                    $studentId = $student['id'];
+                                @endphp
+                                <tr class="hover:bg-slate-50 transition cursor-pointer" onclick="toggleStudentDetail('detail-{{ $studentId }}')">
+                                    <td class="py-2.5 px-3 text-center text-slate-400 font-bold">{{ $idx + 1 }}</td>
+                                    <td class="py-2.5 px-3">
+                                        <div class="flex items-center gap-2.5">
+                                            <div class="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-black text-xs shrink-0 no-print">
+                                                {{ strtoupper(substr($student['name'], 0, 1)) }}
+                                            </div>
+                                            <div>
+                                                <p class="font-bold text-slate-900 leading-tight">{{ $student['name'] }}</p>
+                                                <p class="text-[10px] text-slate-400 font-mono">{{ $student['nomor_induk'] ?? $student['username'] }}</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="py-2.5 px-3 text-center">
+                                        <span class="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-indigo-50 border border-indigo-200 text-indigo-800 badge-print">
+                                            Kls {{ $student['grade'] }}
+                                        </span>
+                                    </td>
+                                    <td class="py-2.5 px-3 text-center font-black text-slate-800">{{ $student['total_exams'] }}</td>
+                                    <td class="py-2.5 px-3 text-center">
+                                        <span class="inline-block px-2.5 py-1 rounded-xl text-xs font-black border badge-print {{ $statusBg }}">
+                                            {{ $avg }}
+                                        </span>
+                                    </td>
+                                    <td class="py-2.5 px-3 text-center font-bold text-emerald-700">{{ $student['max_score'] ?: '-' }}</td>
+                                    <td class="py-2.5 px-3 text-center font-bold text-rose-700">{{ $student['min_score'] ?: '-' }}</td>
+                                    <td class="py-2.5 px-3 text-center font-bold text-emerald-600">{{ $student['total_correct'] }}</td>
+                                    <td class="py-2.5 px-3 text-center font-bold text-rose-600">{{ $student['total_wrong'] }}</td>
+                                    <td class="py-2.5 px-3 text-center font-bold text-slate-500">{{ $student['total_unanswered'] }}</td>
+                                    <td class="py-2.5 px-3 text-center">
+                                        @if($student['violations_count'] > 0)
+                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-700 border border-rose-200 badge-print">
+                                                {{ $student['violations_count'] }} Log
+                                            </span>
+                                        @else
+                                            <span class="text-slate-300 font-bold">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="py-2.5 px-3 text-center">
+                                        <span class="px-2.5 py-1 rounded-xl text-[10px] font-extrabold border badge-print {{ $statusBg }}">
+                                            {{ $statusText }}
+                                        </span>
+                                    </td>
+                                    <td class="py-2.5 px-3 text-center no-print">
+                                        <button onclick="event.stopPropagation(); toggleStudentDetail('detail-{{ $studentId }}')"
+                                                class="p-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 transition border border-indigo-200"
+                                                title="Lihat Riwayat Ujian">
+                                            <i class="fa-solid fa-chevron-down text-xs" id="icon-{{ $studentId }}"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <!-- Row Detail Ujian Siswa (toggle) -->
+                                <tr id="detail-{{ $studentId }}" class="hidden bg-indigo-50/40 student-detail-subrow">
+                                    <td colspan="13" class="px-6 py-4">
+                                        @if($student['total_exams'] > 0)
+                                        <div class="space-y-2">
+                                            <p class="text-xs font-extrabold text-indigo-700 mb-2 flex items-center gap-2">
+                                                <i class="fa-solid fa-list-check"></i>
+                                                Riwayat Ujian {{ $student['name'] }} — Kelas {{ $student['grade'] }} SD
+                                            </p>
+                                            <div class="overflow-x-auto">
+                                                <table class="w-full text-[11px] border-collapse">
+                                                    <thead>
+                                                        <tr class="bg-white border border-slate-200 text-slate-500 uppercase text-[10px]">
+                                                            <th class="py-2 px-3 font-bold text-left">Mata Pelajaran</th>
+                                                            <th class="py-2 px-3 font-bold text-center">Nilai</th>
+                                                            <th class="py-2 px-3 font-bold text-center">Benar</th>
+                                                            <th class="py-2 px-3 font-bold text-center">Salah</th>
+                                                            <th class="py-2 px-3 font-bold text-center">Kosong</th>
+                                                            <th class="py-2 px-3 font-bold text-center">Durasi</th>
+                                                            <th class="py-2 px-3 font-bold text-left">Tanggal</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody class="divide-y divide-slate-100">
+                                                        @foreach($student['exam_results'] as $er)
+                                                            @php
+                                                                $erBg = $er->score >= 70 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : ($er->score >= 50 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-rose-700 bg-rose-50 border-rose-200');
+                                                            @endphp
+                                                            <tr class="bg-white hover:bg-slate-50">
+                                                                <td class="py-2 px-3 font-semibold text-slate-800">{{ $er->subject->title ?? 'Ujian' }}</td>
+                                                                <td class="py-2 px-3 text-center">
+                                                                    <span class="px-2.5 py-0.5 rounded-lg font-black border text-xs {{ $erBg }}">
+                                                                        {{ $er->score }}
+                                                                    </span>
+                                                                </td>
+                                                                <td class="py-2 px-3 text-center font-bold text-emerald-700">{{ $er->correct_count }}</td>
+                                                                <td class="py-2 px-3 text-center font-bold text-rose-700">{{ $er->wrong_count }}</td>
+                                                                <td class="py-2 px-3 text-center text-slate-500">{{ $er->unanswered_count }}</td>
+                                                                <td class="py-2 px-3 text-center font-mono text-slate-600">
+                                                                    {{ floor($er->time_spent_seconds / 60) }}m {{ $er->time_spent_seconds % 60 }}s
+                                                                </td>
+                                                                <td class="py-2 px-3 text-slate-500">{{ $er->created_at ? $er->created_at->format('d M Y, H:i') : '-' }}</td>
+                                                            </tr>
+                                                        @endforeach
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                        @else
+                                        <p class="text-xs text-slate-400 font-semibold py-2">
+                                            <i class="fa-solid fa-circle-info mr-1"></i>
+                                            Siswa ini belum mengambil ujian di kelas ini.
+                                        </p>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="13" class="py-10 text-center text-slate-400">
+                                        <i class="fa-solid fa-users-slash text-3xl text-slate-300 mb-2"></i>
+                                        <p class="font-semibold">Belum ada siswa terdaftar{{ $recapGrade ? ' di Kelas ' . $recapGrade . ' SD' : '' }}.</p>
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Area Tanda Tangan Khusus Cetak / Print -->
+            <div class="print-only hidden mt-8 pt-4">
+                <div class="grid grid-cols-2 text-xs text-slate-900 px-8">
+                    <div class="text-left space-y-1">
+                        <p>Mengetahui,</p>
+                        <p class="font-bold">Kepala Sekolah SD</p>
+                        <div class="h-16"></div>
+                        <p class="font-bold underline">( .................................................... )</p>
+                        <p class="text-[10px] text-slate-600">NIP. ....................................................</p>
+                    </div>
+                    <div class="text-right space-y-1">
+                        <p>{{ config('app.school_city', 'Kediri') }}, {{ now()->translatedFormat('d F Y') }}</p>
+                        <p class="font-bold">Guru Kelas / Administrator CAT</p>
+                        <div class="h-16"></div>
+                        <p class="font-bold underline">( {{ auth()->user()->name ?? 'Administrator CAT SD' }} )</p>
+                        <p class="text-[10px] text-slate-600">NIP/ID: {{ auth()->user()->nomor_induk ?? '-' }}</p>
+                    </div>
+                </div>
+            </div>
+
+        </section>
         @else
         <!-- ================= TAB: MANAJEMEN AKUN & PASSWORD SISWA & GURU ================= -->
         <section class="space-y-6">
@@ -1031,18 +1441,27 @@
 
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block mb-1">Maksimum Pelanggaran *</label>
+                        <label class="block mb-1">Jumlah Soal per Sesi *
+                            <span class="text-indigo-600 font-black ml-1">🔀</span>
+                        </label>
+                        <input type="number" name="max_questions" value="20" min="1" max="200" required
+                               class="w-full px-3.5 py-2.5 rounded-xl border border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-indigo-50 font-bold">
+                        <span class="text-[10px] text-indigo-600 font-semibold">Soal acak dari bank soal — tiap siswa beda</span>
+                    </div>
+
+                    <div>
+                        <label class="block mb-1">Maks Pelanggaran *</label>
                         <input type="number" name="max_violations" value="3" min="1" max="10" required
                                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                         <span class="text-[10px] text-slate-400 font-normal">Batas sebelum ujian terkunci</span>
                     </div>
+                </div>
 
-                    <div>
-                        <label class="block mb-1">Kode Remedi / Buka Kunci *</label>
-                        <input type="text" name="remedy_code" value="REMEDI{{ $grade ?: 5 }}" required
-                               class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none uppercase font-bold text-amber-900 bg-amber-50">
-                        <span class="text-[10px] text-slate-400 font-normal">Diberikan ke siswa jika terkunci</span>
-                    </div>
+                <div>
+                    <label class="block mb-1">Kode Remedi / Buka Kunci *</label>
+                    <input type="text" name="remedy_code" value="REMEDI{{ $grade ?: 5 }}" required
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none uppercase font-bold text-amber-900 bg-amber-50">
+                    <span class="text-[10px] text-slate-400 font-normal">Diberikan ke siswa jika terkunci</span>
                 </div>
 
                 <div>
@@ -1123,16 +1542,24 @@
 
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block mb-1">Maksimum Pelanggaran *</label>
-                        <input type="number" id="edit_subj_max_viol" name="max_violations" min="1" max="10" required
-                               class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <label class="block mb-1">Jumlah Soal per Sesi *
+                            <span class="text-indigo-600 font-black ml-1">🔀</span>
+                        </label>
+                        <input type="number" id="edit_subj_max_questions" name="max_questions" min="1" max="200" required
+                               class="w-full px-3.5 py-2.5 rounded-xl border border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-indigo-50 font-bold">
+                        <span class="text-[10px] text-indigo-600 font-semibold">Soal acak dari bank soal — tiap siswa beda</span>
                     </div>
 
                     <div>
-                        <label class="block mb-1">Kode Remedi / Buka Kunci *</label>
-                        <input type="text" id="edit_subj_remedy" name="remedy_code" required
-                               class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none uppercase font-bold text-amber-900 bg-amber-50">
-                    </div>
+                        <label class="block mb-1">Maksimum Pelanggaran *</label>
+                        <input type="number" id="edit_subj_max_viol" name="max_violations" min="1" max="10" required
+                               class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block mb-1">Kode Remedi / Buka Kunci *</label>
+                    <input type="text" id="edit_subj_remedy" name="remedy_code" required
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none uppercase font-bold text-amber-900 bg-amber-50">
                 </div>
 
                 <div>
@@ -1318,6 +1745,27 @@
             document.getElementById(id).classList.add('hidden');
         }
 
+        // Toggle baris detail riwayat ujian siswa di tab Rekap Nilai Per Kelas
+        function toggleStudentDetail(rowId) {
+            const row = document.getElementById(rowId);
+            if (!row) return;
+            const studentId = rowId.replace('detail-', '');
+            const icon = document.getElementById('icon-' + studentId);
+            if (row.classList.contains('hidden')) {
+                row.classList.remove('hidden');
+                if (icon) {
+                    icon.classList.remove('fa-chevron-down');
+                    icon.classList.add('fa-chevron-up');
+                }
+            } else {
+                row.classList.add('hidden');
+                if (icon) {
+                    icon.classList.remove('fa-chevron-up');
+                    icon.classList.add('fa-chevron-down');
+                }
+            }
+        }
+
         function getOptionLabel(idx) {
             return String.fromCharCode(65 + idx);
         }
@@ -1428,6 +1876,7 @@
             document.getElementById('edit_subj_title').value = subject.title;
             document.getElementById('edit_subj_grade').value = subject.grade;
             document.getElementById('edit_subj_duration').value = subject.duration_minutes;
+            document.getElementById('edit_subj_max_questions').value = subject.max_questions || 20;
             document.getElementById('edit_subj_max_viol').value = subject.max_violations || 3;
             document.getElementById('edit_subj_remedy').value = subject.remedy_code || ('REMEDI' + subject.grade);
             document.getElementById('edit_subj_desc').value = subject.description || '';

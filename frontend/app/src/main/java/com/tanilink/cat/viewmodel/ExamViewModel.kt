@@ -431,7 +431,11 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
 
         // Fetch questions directly from backend API database
         viewModelScope.launch {
-            val remoteQuestions = CatApiClient.getQuestions(subject.id, _selectedGrade.value)
+            val remoteQuestions = CatApiClient.getQuestions(
+                subjectId   = subject.id,
+                grade       = _selectedGrade.value,
+                maxQuestions = subject.maxQuestions
+            )
             if (!remoteQuestions.isNullOrEmpty()) {
                 _questions.value = remoteQuestions
             }

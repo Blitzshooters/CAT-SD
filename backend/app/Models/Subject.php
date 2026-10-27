@@ -10,10 +10,18 @@ class Subject extends Model
         'title',
         'grade',
         'duration_minutes',
+        'max_questions',
         'max_violations',
         'remedy_code',
         'icon_name',
         'description',
+    ];
+
+    protected $casts = [
+        'grade'            => 'integer',
+        'duration_minutes' => 'integer',
+        'max_questions'    => 'integer',
+        'max_violations'   => 'integer',
     ];
 
     public function questions()

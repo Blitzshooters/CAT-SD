@@ -62,6 +62,96 @@ class AdminController extends Controller
         // System settings
         $classChangeCode = AppSetting::get('class_change_code', 'unpkediri');
 
+        // Rekapitulasi Nilai Per Kelas (Kelas 1 - 6 SD)
+        $recapGrade = $request->query('recap_grade');
+        if ($recapGrade === 'all') {
+            $recapGrade = null;
+        }
+
+        $classRecaps = [];
+        for ($g = 1; $g <= 6; $g++) {
+            $studentsCount = User::where('is_admin', false)->where('grade', $g)->count();
+            $results = ExamResult::where('grade', $g)->get();
+            $totalExams = $results->count();
+            $avgScore = $totalExams > 0 ? round($results->avg('score'), 1) : 0;
+            $maxScore = $totalExams > 0 ? $results->max('score') : 0;
+            $minScore = $totalExams > 0 ? $results->min('score') : 0;
+            $passedCount = $totalExams > 0 ? $results->where('score', '>=', 70)->count() : 0;
+            $passRate = $totalExams > 0 ? round(($passedCount / $totalExams) * 100) : 0;
+            $violationsCount = ProctoringLog::whereHas('user', function ($q) use ($g) {
+                $q->where('grade', $g);
+            })->count();
+
+            $classRecaps[$g] = [
+                'grade'            => $g,
+                'students_count'   => $studentsCount,
+                'total_exams'      => $totalExams,
+                'avg_score'        => $avgScore,
+                'max_score'        => $maxScore,
+                'min_score'        => $minScore,
+                'passed_count'     => $passedCount,
+                'pass_rate'        => $passRate,
+                'violations_count' => $violationsCount,
+            ];
+        }
+
+        // Rekap Siswa Detail (jika filter kelas dipilih atau semua)
+        $detailedStudentsQuery = User::where('is_admin', false);
+        if ($recapGrade) {
+            $recapGradeInt = (int)$recapGrade;
+            $detailedStudentsQuery->where(function ($q) use ($recapGradeInt) {
+                $q->where('grade', $recapGradeInt)
+                  ->orWhereHas('examResults', function ($er) use ($recapGradeInt) {
+                      $er->where('grade', $recapGradeInt);
+                  });
+            });
+        }
+
+        $detailedStudents = $detailedStudentsQuery
+            ->with(['examResults' => function ($q) use ($recapGrade) {
+                if ($recapGrade) {
+                    $q->where('grade', (int)$recapGrade);
+                }
+                $q->with('subject')->latest();
+            }, 'proctoringLogs'])
+            ->orderBy('grade')
+            ->orderBy('name')
+            ->get()
+            ->map(function ($student) use ($recapGrade) {
+                $results = $recapGrade 
+                    ? $student->examResults->where('grade', (int)$recapGrade)
+                    : $student->examResults;
+
+                $totalExams = $results->count();
+                $avgScore = $totalExams > 0 ? round($results->avg('score'), 1) : 0;
+                $maxScore = $totalExams > 0 ? $results->max('score') : 0;
+                $minScore = $totalExams > 0 ? $results->min('score') : 0;
+                $totalCorrect = $results->sum('correct_count');
+                $totalWrong = $results->sum('wrong_count');
+                $totalUnanswered = $results->sum('unanswered_count');
+                $totalQuestionsWorked = $totalCorrect + $totalWrong;
+                $violations = $student->proctoringLogs->count();
+
+                return [
+                    'id'                     => $student->id,
+                    'name'                   => $student->name,
+                    'username'               => $student->username,
+                    'nomor_induk'            => $student->nomor_induk,
+                    'avatar'                 => $student->avatar,
+                    'grade'                  => $student->grade,
+                    'total_exams'            => $totalExams,
+                    'avg_score'              => $avgScore,
+                    'max_score'              => $maxScore,
+                    'min_score'              => $minScore,
+                    'total_correct'          => $totalCorrect,
+                    'total_wrong'            => $totalWrong,
+                    'total_unanswered'       => $totalUnanswered,
+                    'total_questions_worked' => $totalQuestionsWorked,
+                    'violations_count'       => $violations,
+                    'exam_results'           => $results->values(),
+                ];
+            });
+
         return view('admin.dashboard', compact(
             'subjects',
             'selectedSubject',
@@ -72,7 +162,10 @@ class AdminController extends Controller
             'classChangeCode',
             'grade',
             'users',
-            'tab'
+            'tab',
+            'classRecaps',
+            'recapGrade',
+            'detailedStudents'
         ));
     }
 
@@ -85,12 +178,18 @@ class AdminController extends Controller
             'title'            => 'required|string|max:255',
             'grade'            => 'required|integer|min:1|max:6',
             'duration_minutes' => 'required|integer|min:1|max:300',
+            'max_questions'    => 'nullable|integer|min:1|max:200',
             'max_violations'   => 'required|integer|min:1|max:20',
             'remedy_code'      => 'required|string|max:50',
             'description'      => 'nullable|string',
             'icon_name'        => 'nullable|string',
             'icon_file'        => 'nullable|image|max:5120',
         ]);
+
+        // Default max_questions = 20 jika tidak diisi
+        if (empty($validated['max_questions'])) {
+            $validated['max_questions'] = 20;
+        }
 
         if ($request->hasFile('icon_file')) {
             $path = $request->file('icon_file')->store('subjects', 'public');
@@ -122,12 +221,17 @@ class AdminController extends Controller
             'title'            => 'required|string|max:255',
             'grade'            => 'required|integer|min:1|max:6',
             'duration_minutes' => 'required|integer|min:1|max:300',
+            'max_questions'    => 'nullable|integer|min:1|max:200',
             'max_violations'   => 'required|integer|min:1|max:20',
             'remedy_code'      => 'required|string|max:50',
             'description'      => 'nullable|string',
             'icon_name'        => 'nullable|string',
             'icon_file'        => 'nullable|image|max:5120',
         ]);
+
+        if (empty($validated['max_questions'])) {
+            $validated['max_questions'] = $subject->max_questions ?? 20;
+        }
 
         if ($request->hasFile('icon_file')) {
             // Delete old custom file if it exists in public storage

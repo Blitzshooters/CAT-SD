@@ -32,6 +32,7 @@ class ExamController extends Controller
                 'title'            => $s->title,
                 'grade'            => $s->grade,
                 'duration_minutes' => $s->duration_minutes,
+                'max_questions'    => $s->max_questions ?? 20,
                 'max_violations'   => $s->max_violations ?? 3,
                 'remedy_code'      => $s->remedy_code ?? ('REMEDI' . $s->grade),
                 'icon_name'        => $s->icon_name ?? 'school',
@@ -54,11 +55,18 @@ class ExamController extends Controller
     {
         $subject = Subject::findOrFail($subjectId);
 
-        $limit = $request->query('limit', 20);
+        // Gunakan max_questions dari subject sebagai default limit.
+        // Client boleh override dengan query ?limit=N, tapi dibatasi maks bank soal yang tersedia.
+        $subjectMaxQ   = $subject->max_questions ?? 20;
+        $requestedLimit = (int) $request->query('limit', $subjectMaxQ);
+        $totalInBank   = Question::where('subject_id', $subjectId)->count();
+
+        // Jangan melebihi jumlah soal yang ada di bank
+        $limit = min($requestedLimit, $totalInBank);
 
         $questions = Question::where('subject_id', $subjectId)
             ->inRandomOrder()
-            ->limit((int)$limit)
+            ->limit($limit)
             ->get()
             ->map(function ($q) {
                 return [
@@ -79,6 +87,8 @@ class ExamController extends Controller
                 'title'            => $subject->title,
                 'grade'            => $subject->grade,
                 'duration_minutes' => $subject->duration_minutes,
+                'max_questions'    => $subjectMaxQ,
+                'questions_in_bank'=> $totalInBank,
                 'max_violations'   => $subject->max_violations ?? 3,
                 'remedy_code'      => $subject->remedy_code ?? ('REMEDI' . $subject->grade),
             ],

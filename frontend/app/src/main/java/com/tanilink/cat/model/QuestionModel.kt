@@ -20,7 +20,8 @@ data class ExamSubject(
     val iconName: String,
     val primaryColor: Color,
     val secondaryColor: Color,
-    val questionCount: Int,
+    val questionCount: Int,    // Total soal di bank
+    val maxQuestions: Int = 20, // Jumlah soal yang ditampilkan per sesi (bisa < questionCount)
     val durationMinutes: Int,
     val description: String,
     val maxViolations: Int = 3,

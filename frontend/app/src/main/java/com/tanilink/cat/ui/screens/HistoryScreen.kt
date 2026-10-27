@@ -43,6 +43,7 @@ fun HistoryScreen(
     val totalExams = examHistory.size
     val avgScore = if (totalExams > 0) examHistory.map { it.score }.average().toInt() else 0
     val maxScore = if (totalExams > 0) examHistory.maxOf { it.score } else 0
+    val totalQuestionsAnswered = examHistory.sumOf { it.correctCount + it.wrongCount }
 
     if (showClearConfirmDialog) {
         AlertDialog(
@@ -214,7 +215,7 @@ fun HistoryScreen(
                                 ) {
                                     HeaderStatItem(title = "Rata-Rata Nilai", value = "$avgScore", icon = Icons.Default.Equalizer)
                                     HeaderStatItem(title = "Nilai Tertinggi", value = "$maxScore", icon = Icons.Default.TrendingUp)
-                                    HeaderStatItem(title = "Total Soal", value = "${totalExams * 20}", icon = Icons.Default.Quiz)
+                                    HeaderStatItem(title = "Total Soal", value = "$totalQuestionsAnswered", icon = Icons.Default.Quiz)
                                 }
                             }
                         }

@@ -47,7 +47,7 @@ object CatApiClient {
     // 127.0.0.1 for local tests or adb reverse tcp:8000 tcp:8000 (USB device)
     // 192.168.1.2 for direct Wi-Fi LAN connection
     private const val BASE_URL_LOCAL = "http://127.0.0.1:8000/api"
-    private const val BASE_URL_LAN = "http://192.168.1.4:8000/api"
+    private const val BASE_URL_LAN = "http://192.168.1.5:8000/api"
     private const val BASE_URL_EMULATOR = "http://10.0.2.2:8000/api"
 
     var currentBaseUrl = BASE_URL_LOCAL
@@ -139,6 +139,7 @@ object CatApiClient {
                                         else -> Color(0xFFFEE2E2)
                                     },
                                     questionCount = item.optInt("question_count", 20),
+                                    maxQuestions = item.optInt("max_questions", 20),
                                     durationMinutes = item.optInt("duration_minutes", 45),
                                     description = item.optString("description", ""),
                                     maxViolations = item.optInt("max_violations", 3),
@@ -157,11 +158,11 @@ object CatApiClient {
         null
     }
 
-    suspend fun getQuestions(subjectId: String, grade: Int): List<Question>? = withContext(Dispatchers.IO) {
+    suspend fun getQuestions(subjectId: String, grade: Int, maxQuestions: Int = 20): List<Question>? = withContext(Dispatchers.IO) {
         val urlsToTry = getCandidateUrls()
         for (baseUrl in urlsToTry) {
             try {
-                val url = URL("$baseUrl/subjects/$subjectId/questions")
+                val url = URL("$baseUrl/subjects/$subjectId/questions?limit=$maxQuestions")
                 val conn = (url.openConnection() as HttpURLConnection).apply {
                     requestMethod = "GET"
                     connectTimeout = 3000
