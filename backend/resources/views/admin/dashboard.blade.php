@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Admin CAT SD - Panel Manajemen Ujian & Bank Soal</title>
+    <link rel="icon" type="image/png" href="{{ asset('app-logo.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -66,11 +67,13 @@
                 border: 1px solid #94a3b8 !important;
                 padding: 4px 6px !important;
                 color: #0f172a !important;
+                white-space: nowrap !important;
             }
             th {
                 background-color: #f1f5f9 !important;
                 font-weight: 800 !important;
                 text-align: center !important;
+                white-space: nowrap !important;
             }
             .badge-print {
                 border: 1px solid #64748b !important;
@@ -78,6 +81,8 @@
                 color: #0f172a !important;
                 font-weight: 700 !important;
                 padding: 1px 4px !important;
+                white-space: nowrap !important;
+                display: inline-block !important;
             }
             .student-detail-subrow {
                 display: none !important;
@@ -89,23 +94,17 @@
 
     <!-- Header Navigation -->
     <header class="bg-indigo-700 text-white shadow-lg sticky top-0 z-40">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap justify-between items-center gap-4">
+        <div class="w-full max-w-[1850px] mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap justify-between items-center gap-3">
             <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-xl font-black text-amber-300 shadow-inner">
-                    🎒
-                </div>
+                <img src="{{ asset('app-logo.png') }}" alt="Logo CAT SD" class="w-10 h-10 rounded-xl object-contain shadow-md ring-1 ring-white/30">
                 <div>
                     <h1 class="text-xl font-bold tracking-tight leading-none">CAT SD — Panel Guru & Admin</h1>
-                    <p class="text-xs text-indigo-200 mt-1">Computer Assisted Test & AI Proctoring Management</p>
+                    <p class="text-xs text-indigo-200 mt-0.5">Computer Assisted Test & AI Proctoring Management</p>
                 </div>
             </div>
 
-            <!-- Stats Quick Badge -->
-            <div class="flex items-center gap-2 sm:gap-4 text-xs font-medium">
-                <div class="bg-indigo-800/80 px-3 py-1.5 rounded-lg border border-indigo-500/30 flex items-center gap-2">
-                    <i class="fa-solid fa-book-open text-amber-300"></i>
-                    <span>{{ $stats['total_subjects'] }} Ujian</span>
-                </div>
+            <!-- Stats Quick Badge + User Info + Logout -->
+            <div class="flex items-center gap-2 sm:gap-3 text-xs font-medium flex-wrap">
                 <div class="bg-indigo-800/80 px-3 py-1.5 rounded-lg border border-indigo-500/30 flex items-center gap-2">
                     <i class="fa-solid fa-circle-question text-emerald-300"></i>
                     <span>{{ $stats['total_questions'] }} Soal</span>
@@ -114,18 +113,53 @@
                     <i class="fa-solid fa-user-graduate text-cyan-300"></i>
                     <span>{{ $stats['total_students'] }} Siswa</span>
                 </div>
-                <a href="{{ route('admin.dashboard', ['tab' => 'users']) }}#settings-class-code" class="bg-indigo-900/90 hover:bg-indigo-950 px-3 py-1.5 rounded-lg border border-amber-400/40 text-amber-300 transition shadow-sm flex items-center gap-1.5 font-bold" title="Kode verifikasi bagi siswa saat ingin berpindah kelas">
-                    <i class="fa-solid fa-key text-amber-400"></i> Kode Kelas: <code class="bg-amber-400/20 px-1 rounded text-white">{{ $classChangeCode }}</code>
+                <a href="{{ route('admin.dashboard', ['tab' => 'users']) }}#settings-class-code"
+                   class="bg-indigo-900/90 hover:bg-indigo-950 px-3 py-1.5 rounded-lg border border-amber-400/40 text-amber-300 transition shadow-sm flex items-center gap-1.5 font-bold"
+                   title="Kode verifikasi bagi siswa saat ingin berpindah kelas">
+                    <i class="fa-solid fa-key text-amber-400"></i> Kode: <code class="bg-amber-400/20 px-1 rounded text-white">{{ $classChangeCode }}</code>
                 </a>
-                <a href="{{ route('admin.dashboard', ['tab' => 'monitoring']) }}" class="bg-amber-400 hover:bg-amber-500 text-slate-900 font-bold px-3 py-1.5 rounded-lg transition shadow-sm flex items-center gap-1.5">
+                <a href="{{ route('admin.dashboard', ['tab' => 'monitoring']) }}"
+                   class="bg-amber-400 hover:bg-amber-500 text-slate-900 font-bold px-3 py-1.5 rounded-lg transition shadow-sm flex items-center gap-1.5">
                     <i class="fa-solid fa-shield-halved"></i> Monitor AI ({{ $stats['total_violations'] }})
                 </a>
+
+                <!-- Logged-in User Info -->
+                @if(isset($currentUser))
+                <div class="hidden sm:flex items-center gap-2 bg-white/10 border border-white/20 px-3 py-1.5 rounded-xl">
+                    <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black
+                        {{ $currentUser->role === 'admin' ? 'bg-amber-400 text-slate-900' : 'bg-emerald-400 text-slate-900' }}">
+                        {{ strtoupper(substr($currentUser->name, 0, 1)) }}
+                    </div>
+                    <div class="leading-tight">
+                        <div class="font-bold text-[11px] text-white">{{ $currentUser->name }}</div>
+                        <div class="text-[10px] text-indigo-200">
+                            @if($currentUser->role === 'admin')
+                                <span class="text-amber-300">⭐ Administrator</span>
+                            @else
+                                <span class="text-emerald-300">📋 Guru/Pengawas</span>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+                @endif
+
+                <!-- Logout Button -->
+                <form action="{{ route('admin.logout') }}" method="POST" class="inline">
+                    @csrf
+                    <button type="submit"
+                            class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-3 py-1.5 rounded-lg transition shadow-sm flex items-center gap-1.5"
+                            title="Keluar dari Panel Admin"
+                            onclick="return confirm('Yakin ingin keluar dari panel admin?')">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                        <span class="hidden sm:inline">Keluar</span>
+                    </button>
+                </form>
             </div>
         </div>
     </header>
 
     <!-- Main Container -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <main class="w-full max-w-[1850px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
         <!-- Flash Message -->
         @if(session('success'))
@@ -152,7 +186,7 @@
             </div>
         @endif
 
-        <!-- Top Navigation Tabs (Ujian & Bank Soal, Monitoring AI Proctoring, Rekap Nilai Per Kelas, Manajemen Akun) -->
+        <!-- Top Navigation Tabs (Ujian & Bank Soal, Monitoring AI Proctoring, Pengolahan Nilai & Rekap, Manajemen Akun) -->
         <div class="flex items-center gap-2 sm:gap-3 border-b border-slate-200 pb-3 flex-wrap no-print">
             <a href="{{ route('admin.dashboard', ['tab' => 'exams', 'grade' => $grade]) }}"
                class="px-5 py-2.5 rounded-2xl text-xs font-extrabold transition flex items-center gap-2 {{ ($tab ?? 'exams') === 'exams' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200' }}">
@@ -160,12 +194,12 @@
             </a>
             <a href="{{ route('admin.dashboard', ['tab' => 'monitoring']) }}"
                class="px-5 py-2.5 rounded-2xl text-xs font-extrabold transition flex items-center gap-2 {{ ($tab ?? 'exams') === 'monitoring' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200' }}">
-                <i class="fa-solid fa-shield-halved text-sm {{ ($tab ?? 'exams') === 'monitoring' ? 'text-white' : 'text-amber-500' }}"></i> Monitoring AI Proctoring & Hasil Ujian
+                <i class="fa-solid fa-shield-halved text-sm {{ ($tab ?? 'exams') === 'monitoring' ? 'text-white' : 'text-amber-500' }}"></i> Monitoring AI Proctoring
                 <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ ($tab ?? 'exams') === 'monitoring' ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-700' }}">{{ $stats['total_violations'] }} Log</span>
             </a>
             <a href="{{ route('admin.dashboard', ['tab' => 'recap', 'recap_grade' => $recapGrade]) }}"
                class="px-5 py-2.5 rounded-2xl text-xs font-extrabold transition flex items-center gap-2 {{ ($tab ?? 'exams') === 'recap' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200' }}">
-                <i class="fa-solid fa-chart-column text-sm {{ ($tab ?? 'exams') === 'recap' ? 'text-white' : 'text-indigo-600' }}"></i> Rekap Nilai Per Kelas
+                <i class="fa-solid fa-chart-column text-sm {{ ($tab ?? 'exams') === 'recap' ? 'text-white' : 'text-indigo-600' }}"></i> Pengolahan Nilai & Rekap
                 <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ ($tab ?? 'exams') === 'recap' ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-700' }}">6 Kelas SD</span>
             </a>
             <a href="{{ route('admin.dashboard', ['tab' => 'users']) }}"
@@ -431,121 +465,24 @@
 
         </div>
 
-        <!-- Section: Monitoring AI Proctoring & Hasil Ujian -->
-        <section id="monitoring" class="mt-10 pt-6 border-t border-slate-200 space-y-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-                        <i class="fa-solid fa-shield-cat text-indigo-600"></i>
-                        Monitoring AI Proctoring & Nilai Siswa Terbaru
-                    </h2>
-                    <p class="text-xs text-slate-500">Aktivitas pengerjaan ujian CAT dan log pelanggaran terkini.</p>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-                <!-- Nilai Ujian Terakhir -->
-                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-                    <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
-                        <i class="fa-solid fa-graduation-cap text-indigo-500"></i> Hasil Ujian Terakhir
-                    </h3>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-xs text-left">
-                            <thead class="bg-slate-50 text-slate-500 uppercase font-bold text-[10px] border-b">
-                                <tr>
-                                    <th class="py-2 px-3">Siswa</th>
-                                    <th class="py-2 px-3">Mapel</th>
-                                    <th class="py-2 px-3">Skor</th>
-                                    <th class="py-2 px-3">Benar/Salah</th>
-                                    <th class="py-2 px-3">Waktu</th>
-                                    <th class="py-2 px-3 text-center">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                @forelse($recentResults as $res)
-                                    <tr class="hover:bg-slate-50">
-                                        <td class="py-2 px-3 font-semibold">{{ $res->user->name ?? 'Siswa' }} (Kls {{ $res->grade }})</td>
-                                        <td class="py-2 px-3">{{ $res->subject->title ?? '-' }}</td>
-                                        <td class="py-2 px-3 font-black text-indigo-600 text-sm">{{ $res->score }}</td>
-                                        <td class="py-2 px-3 text-slate-600">{{ $res->correct_count }}B / {{ $res->wrong_count }}S</td>
-                                        <td class="py-2 px-3 text-slate-400">{{ $res->created_at->diffForHumans() }}</td>
-                                        <td class="py-2 px-3 text-center">
-                                            <form action="{{ route('admin.exam-results.delete', $res->id) }}" method="POST" onsubmit="return confirm('Hapus riwayat ujian {{ $res->subject->title ?? 'Ujian' }} siswa {{ $res->user->name ?? 'Siswa' }}? Siswa dapat mengambil ulang ujian ini.');">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" title="Hapus Ujian (Reset agar siswa dapat mengerjakan lagi)"
-                                                        class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg font-bold text-[11px] transition inline-flex items-center gap-1 border border-rose-200">
-                                                    <i class="fa-solid fa-trash text-[10px]"></i> Hapus
-                                                </button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="5" class="py-4 text-center text-slate-400">Belum ada data pengerjaan ujian.</td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Log Pelanggaran AI Proctoring -->
-                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-                    <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
-                        <i class="fa-solid fa-triangle-exclamation text-rose-500"></i> Log Pelanggaran Proctoring
-                    </h3>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-xs text-left">
-                            <thead class="bg-slate-50 text-slate-500 uppercase font-bold text-[10px] border-b">
-                                <tr>
-                                    <th class="py-2 px-3">Siswa</th>
-                                    <th class="py-2 px-3">Tipe Pelanggaran</th>
-                                    <th class="py-2 px-3">Keterangan</th>
-                                    <th class="py-2 px-3">Waktu</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                @forelse($recentViolations as $log)
-                                    <tr class="hover:bg-slate-50">
-                                        <td class="py-2 px-3 font-semibold">{{ $log->user->name ?? 'Siswa' }}</td>
-                                        <td class="py-2 px-3">
-                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700">
-                                                {{ $log->violation_type }}
-                                            </span>
-                                        </td>
-                                        <td class="py-2 px-3 text-slate-600">{{ $log->description }}</td>
-                                        <td class="py-2 px-3 text-slate-400">{{ $log->created_at->diffForHumans() }}</td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="4" class="py-4 text-center text-slate-400">Tidak ada log pelanggaran.</td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-            </div>
-        </section>
         @elseif(($tab ?? 'exams') === 'monitoring')
-        <!-- ================= TAB: MONITORING AI PROCTORING & HASIL UJIAN ================= -->
+        <!-- ================= TAB: MONITORING AI PROCTORING KHUSUS ================= -->
         <section class="space-y-6">
 
             <!-- Monitoring Top Banner & Actions -->
-            <div class="bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white p-6 rounded-3xl shadow-lg border border-indigo-700/50 flex flex-wrap items-center justify-between gap-4">
+            <div class="bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-900 text-white p-6 rounded-3xl shadow-lg border border-indigo-700/50 flex flex-wrap items-center justify-between gap-4">
                 <div class="space-y-1">
                     <div class="inline-flex items-center gap-2 bg-indigo-500/30 px-3 py-1 rounded-full text-xs font-bold text-amber-300 border border-amber-300/30">
-                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                        AI Proctoring Live Monitor
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        AI Proctoring Live Telemetry & Anti-Cheat
                     </div>
                     <h2 class="text-xl font-black tracking-tight text-white flex items-center gap-2.5">
-                        <i class="fa-solid fa-shield-cat text-amber-400"></i>
-                        Pusat Pantauan AI Proctoring & Hasil Ujian Siswa
+                        <i class="fa-solid fa-shield-halved text-amber-400"></i>
+                        Pusat Pengawasan & Monitoring AI Proctoring Live
                     </h2>
-                    <p class="text-xs text-indigo-200">Pantau aktivitas ujian siswa, pelanggaran proctoring, dan kelola atau hapus ujian yang telah diambil.</p>
+                    <p class="text-xs text-indigo-200">
+                        Pantau aktivitas kecurangan siswa saat ujian secara real-time via deteksi wajah kamera ML Kit & perpindahan aplikasi/tab. Hasil pengerjaan dan pengolahan nilai dikelola di menu <a href="{{ route('admin.dashboard', ['tab' => 'recap']) }}" class="text-amber-300 font-bold hover:underline"><i class="fa-solid fa-chart-column"></i> Pengolahan Nilai & Rekap</a>.
+                    </p>
                 </div>
 
                 <div class="flex items-center gap-2.5 flex-wrap">
@@ -570,153 +507,94 @@
                 </div>
             </div>
 
-            <!-- Stats Overview Cards -->
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3.5">
-                    <div class="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 text-xl font-bold">
-                        <i class="fa-solid fa-graduation-cap"></i>
-                    </div>
-                    <div>
-                        <p class="text-xs font-bold text-slate-400">Total Ujian Dikerjakan</p>
-                        <p class="text-xl font-black text-slate-900">{{ $stats['total_results'] }}</p>
-                    </div>
-                </div>
-
-                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3.5">
-                    <div class="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 text-xl font-bold">
+            <!-- Stats Overview Cards Khusus Monitoring AI -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 text-lg font-bold shrink-0">
                         <i class="fa-solid fa-triangle-exclamation"></i>
                     </div>
                     <div>
-                        <p class="text-xs font-bold text-slate-400">Pelanggaran Terdeteksi</p>
+                        <p class="text-[11px] font-bold text-slate-400 leading-tight">Total Pelanggaran</p>
                         <p class="text-xl font-black text-rose-600">{{ $stats['total_violations'] }}</p>
                     </div>
                 </div>
 
-                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3.5">
-                    <div class="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 text-xl font-bold">
-                        <i class="fa-solid fa-users"></i>
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 text-lg font-bold shrink-0">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
                     </div>
                     <div>
-                        <p class="text-xs font-bold text-slate-400">Siswa Terdaftar</p>
-                        <p class="text-xl font-black text-emerald-600">{{ $stats['total_students'] }}</p>
+                        <p class="text-[11px] font-bold text-slate-400 leading-tight">Pindah Tab/App</p>
+                        <p class="text-xl font-black text-purple-700">
+                            {{ $recentViolations->where('violation_type', 'SWITCH_TAB')->count() }}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 text-lg font-bold shrink-0">
+                        <i class="fa-solid fa-eye-slash"></i>
+                    </div>
+                    <div>
+                        <p class="text-[11px] font-bold text-slate-400 leading-tight">Deteksi Wajah</p>
+                        <p class="text-xl font-black text-amber-700">
+                            {{ $recentViolations->whereIn('violation_type', ['NO_FACE', 'MULTIPLE_FACES', 'LOOKING_AWAY'])->count() }}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-xl bg-cyan-50 border border-cyan-100 flex items-center justify-center text-cyan-600 text-lg font-bold shrink-0">
+                        <i class="fa-solid fa-camera"></i>
+                    </div>
+                    <div>
+                        <p class="text-[11px] font-bold text-slate-400 leading-tight">Snapshot AI Kamera</p>
+                        <p class="text-xl font-black text-cyan-700">
+                            {{ $recentViolations->where('violation_type', 'SNAPSHOT_CAPTURED')->count() }}
+                        </p>
                     </div>
                 </div>
             </div>
 
-            <!-- Tabel 1: Riwayat & Hasil Ujian Siswa (dengan Fitur Hapus Ujian) -->
-            <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-                <div class="p-5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                        <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                            <i class="fa-solid fa-file-signature text-indigo-600"></i>
-                            Hasil Pengerjaan Ujian Siswa ({{ $recentResults->count() }})
-                        </h3>
-                        <p class="text-xs text-slate-500">Admin dapat menghapus ujian yang telah diambil jika siswa memerlukan remedi atau ingin ujian ulang.</p>
-                    </div>
-                </div>
-
-                <div class="overflow-x-auto">
-                    <table class="w-full text-xs text-left">
-                        <thead class="bg-slate-50 text-slate-500 uppercase font-black text-[11px] border-b border-slate-200">
-                            <tr>
-                                <th class="py-3.5 px-4">Siswa</th>
-                                <th class="py-3.5 px-4">Kelas & Ujian</th>
-                                <th class="py-3.5 px-4 text-center">Nilai / Skor</th>
-                                <th class="py-3.5 px-4">Rincian Jawaban</th>
-                                <th class="py-3.5 px-4">Waktu Pengerjaan</th>
-                                <th class="py-3.5 px-4">Tanggal Ujian</th>
-                                <th class="py-3.5 px-4 text-center">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            @forelse($recentResults as $res)
-                                @php
-                                    $scoreBg = $res->score >= 75 ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : ($res->score >= 50 ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-rose-100 text-rose-800 border-rose-200');
-                                @endphp
-                                <tr class="hover:bg-slate-50/80 transition">
-                                    <td class="py-3 px-4">
-                                        <div class="flex items-center gap-2.5">
-                                            <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0">
-                                                {{ strtoupper(substr($res->user->name ?? 'S', 0, 1)) }}
-                                            </div>
-                                            <div>
-                                                <p class="font-bold text-slate-900">{{ $res->user->name ?? 'Siswa' }}</p>
-                                                <p class="text-[11px] text-slate-400 font-mono">{{ $res->user->username ?? '-' }}</p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="py-3 px-4">
-                                        <p class="font-bold text-slate-800">{{ $res->subject->title ?? 'Ujian' }}</p>
-                                        <span class="px-2 py-0.5 rounded text-[10px] font-black bg-slate-100 text-slate-600">
-                                            Kelas {{ $res->grade }} SD
-                                        </span>
-                                    </td>
-                                    <td class="py-3 px-4 text-center">
-                                        <span class="px-3 py-1 rounded-xl text-sm font-black border {{ $scoreBg }} inline-block">
-                                            {{ $res->score }}
-                                        </span>
-                                    </td>
-                                    <td class="py-3 px-4 text-slate-700">
-                                        <div class="space-y-0.5 text-[11px]">
-                                            <span class="text-emerald-700 font-bold"><i class="fa-solid fa-check"></i> {{ $res->correct_count }} Benar</span> •
-                                            <span class="text-rose-700 font-bold"><i class="fa-solid fa-xmark"></i> {{ $res->wrong_count }} Salah</span> •
-                                            <span class="text-slate-500 font-bold"><i class="fa-solid fa-minus"></i> {{ $res->unanswered_count }} Kosong</span>
-                                        </div>
-                                    </td>
-                                    <td class="py-3 px-4 font-mono text-slate-600 text-[11px]">
-                                        <i class="fa-regular fa-clock text-slate-400 mr-1"></i>
-                                        {{ floor($res->time_spent_seconds / 60) }}m {{ $res->time_spent_seconds % 60 }}s
-                                    </td>
-                                    <td class="py-3 px-4 text-slate-500 text-[11px]">
-                                        <p class="font-semibold">{{ $res->created_at ? $res->created_at->format('d M Y, H:i') : '-' }}</p>
-                                        <p class="text-[10px] text-slate-400">{{ $res->created_at ? $res->created_at->diffForHumans() : '' }}</p>
-                                    </td>
-                                    <td class="py-3 px-4 text-center">
-                                        <form action="{{ route('admin.exam-results.delete', $res->id) }}" method="POST"
-                                              onsubmit="return confirm('HAPUS UJIAN INI?\n\nSiswa: {{ $res->user->name ?? 'Siswa' }}\nMapel: {{ $res->subject->title ?? 'Ujian' }}\nSkor: {{ $res->score }}\n\nSetelah dihapus, siswa dapat mengambil dan mengerjakan ulang ujian ini.');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit"
-                                                    class="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 font-bold text-xs transition border border-rose-200 inline-flex items-center gap-1.5 shadow-sm">
-                                                <i class="fa-solid fa-trash text-xs"></i> Hapus Ujian
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="7" class="py-10 text-center text-slate-400">
-                                        <i class="fa-solid fa-clipboard-question text-3xl text-slate-300 mb-2"></i>
-                                        <p class="font-semibold">Belum ada siswa yang mengambil atau menyelesaikan ujian.</p>
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Log Catatan Pelanggaran AI Proctoring (Full Width) -->
+            <!-- Filter Pelanggaran & Live Table -->
             <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden space-y-3">
-                <div class="p-5 border-b border-slate-200 flex items-center justify-between">
+                <div class="p-5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-4">
                     <div>
                         <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                            <i class="fa-solid fa-triangle-exclamation text-rose-500"></i>
-                            Log Catatan Pelanggaran AI Proctoring ({{ $recentViolations->count() }})
+                            <i class="fa-solid fa-shield-cat text-rose-500"></i>
+                            Log Catatan Pelanggaran AI Proctoring Real-Time ({{ $recentViolations->count() }})
                         </h3>
-                        <p class="text-xs text-slate-500">Terdeteksi otomatis oleh ML Kit Face Tracking & Pengawas Aplikasi CAT</p>
+                        <p class="text-xs text-slate-500">Daftar pelanggaran terdeteksi otomatis oleh Google ML Kit Face Tracking & Sensor Pengawas Android.</p>
+                    </div>
+
+                    <!-- Search & Filter Controls -->
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 focus-within:ring-2 focus-within:ring-indigo-500">
+                            <i class="fa-solid fa-magnifying-glass text-slate-400 text-xs"></i>
+                            <input type="text" id="searchViolationInput" onkeyup="filterViolationsTable()" placeholder="Cari nama siswa..." class="bg-transparent text-xs text-slate-800 focus:outline-none w-36 sm:w-48">
+                        </div>
+
+                        <select id="filterViolationType" onchange="filterViolationsTable()" class="bg-slate-50 border border-slate-200 text-xs text-slate-700 font-bold rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="">Semua Tipe Pelanggaran</option>
+                            <option value="SWITCH_TAB">Pindah Aplikasi (SWITCH_TAB)</option>
+                            <option value="NO_FACE">Wajah Hilang (NO_FACE)</option>
+                            <option value="MULTIPLE_FACES">Multi Wajah (MULTIPLE_FACES)</option>
+                            <option value="LOOKING_AWAY">Menoleh (LOOKING_AWAY)</option>
+                            <option value="RAPID_ANSWERING">Jawab Kilat (RAPID_ANSWERING)</option>
+                            <option value="SNAPSHOT_CAPTURED">Snapshot Bukti Kamera (SNAPSHOT_CAPTURED)</option>
+                        </select>
                     </div>
                 </div>
 
                 <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
-                    <table class="w-full text-xs text-left">
+                    <table class="w-full text-xs text-left" id="tableViolations">
                         <thead class="bg-slate-50 text-slate-500 uppercase font-black text-[10px] border-b sticky top-0 z-10">
                             <tr>
-                                <th class="py-2.5 px-3">Siswa</th>
+                                <th class="py-2.5 px-4">Siswa & Kelas</th>
                                 <th class="py-2.5 px-3">Tipe Pelanggaran</th>
-                                <th class="py-2.5 px-3">Keterangan</th>
-                                <th class="py-2.5 px-3">Soal</th>
-                                <th class="py-2.5 px-3">Waktu</th>
+                                <th class="py-2.5 px-3">Keterangan Terdeteksi</th>
+                                <th class="py-2.5 px-3 text-center">No. Soal</th>
+                                <th class="py-2.5 px-3 text-right">Waktu</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
@@ -728,37 +606,46 @@
                                         'MULTIPLE_FACES'    => ['bg' => 'bg-amber-100 text-amber-800 border-amber-200', 'icon' => 'fa-users', 'label' => 'Multi Wajah'],
                                         'LOOKING_AWAY'      => ['bg' => 'bg-orange-100 text-orange-800 border-orange-200', 'icon' => 'fa-eye-slash', 'label' => 'Menoleh'],
                                         'RAPID_ANSWERING'   => ['bg' => 'bg-yellow-100 text-yellow-900 border-yellow-200', 'icon' => 'fa-bolt', 'label' => 'Jawab Kilat'],
-                                        'SNAPSHOT_CAPTURED' => ['bg' => 'bg-cyan-100 text-cyan-800 border-cyan-200', 'icon' => 'fa-camera', 'label' => 'Snapshot'],
+                                        'SNAPSHOT_CAPTURED' => ['bg' => 'bg-cyan-100 text-cyan-800 border-cyan-200', 'icon' => 'fa-camera', 'label' => 'Snapshot Kamera'],
                                         default             => ['bg' => 'bg-slate-100 text-slate-800 border-slate-200', 'icon' => 'fa-shield-halved', 'label' => $log->violation_type],
                                     };
+                                    $studentName = $log->user->name ?? 'Siswa';
                                 @endphp
-                                <tr class="hover:bg-slate-50 transition">
-                                    <td class="py-2.5 px-3 font-bold text-slate-900">
-                                        {{ $log->user->name ?? 'Siswa' }}
-                                        <span class="block text-[10px] text-slate-400 font-normal">Kls {{ $log->user->grade ?? '-' }} SD</span>
+                                <tr class="hover:bg-slate-50 transition violation-row" data-name="{{ strtolower($studentName) }}" data-type="{{ $log->violation_type }}">
+                                    <td class="py-3 px-4 font-bold text-slate-900">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-7 h-7 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0">
+                                                {{ strtoupper(substr($studentName, 0, 1)) }}
+                                            </div>
+                                            <div>
+                                                <span>{{ $studentName }}</span>
+                                                <span class="block text-[10px] text-slate-400 font-normal">Kelas {{ $log->user->grade ?? '-' }} SD &bull; NISN: {{ $log->user->nomor_induk ?? $log->user->username ?? '-' }}</span>
+                                            </div>
+                                        </div>
                                     </td>
-                                    <td class="py-2.5 px-3">
-                                        <span class="px-2 py-0.5 rounded-lg text-[10px] font-black border {{ $typeBadge['bg'] }} inline-flex items-center gap-1">
-                                            <i class="fa-solid {{ $typeBadge['icon'] }} text-[9px]"></i>
+                                    <td class="py-3 px-3">
+                                        <span class="px-2.5 py-1 rounded-lg text-[10px] font-black border {{ $typeBadge['bg'] }} inline-flex items-center gap-1.5 shadow-xs">
+                                            <i class="fa-solid {{ $typeBadge['icon'] }} text-[10px]"></i>
                                             {{ $typeBadge['label'] }}
                                         </span>
                                     </td>
-                                    <td class="py-2.5 px-3 text-slate-700 font-medium">
+                                    <td class="py-3 px-3 text-slate-700 font-medium">
                                         {{ $log->description }}
                                     </td>
-                                    <td class="py-2.5 px-3 text-slate-500 font-mono text-[11px]">
+                                    <td class="py-3 px-3 text-center text-slate-500 font-mono text-[11px]">
                                         {{ $log->question_index !== null ? '#' . ($log->question_index + 1) : '-' }}
                                     </td>
-                                    <td class="py-2.5 px-3 text-slate-400 text-[11px] whitespace-nowrap">
-                                        {{ $log->created_at ? $log->created_at->format('H:i:s') : '-' }}
-                                        <span class="block text-[10px]">{{ $log->created_at ? $log->created_at->diffForHumans() : '' }}</span>
+                                    <td class="py-3 px-3 text-right text-slate-400 text-[11px] whitespace-nowrap">
+                                        <span class="font-bold text-slate-700">{{ $log->created_at ? $log->created_at->format('H:i:s') : '-' }}</span>
+                                        <span class="block text-[10px] text-slate-400">{{ $log->created_at ? $log->created_at->diffForHumans() : '' }}</span>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5" class="py-8 text-center text-slate-400">
-                                        <i class="fa-solid fa-circle-check text-2xl text-emerald-400 mb-1"></i>
-                                        <p class="font-bold">Tidak ada catatan pelanggaran.</p>
+                                    <td colspan="5" class="py-12 text-center text-slate-400">
+                                        <i class="fa-solid fa-shield-heart text-3xl text-emerald-400 mb-2"></i>
+                                        <p class="font-bold text-slate-700">Tidak ada catatan pelanggaran AI Proctoring.</p>
+                                        <p class="text-xs text-slate-400">Semua sesi ujian berlangsung dengan tertib dan mematuhi protokol.</p>
                                     </td>
                                 </tr>
                             @endforelse
@@ -767,19 +654,37 @@
                 </div>
             </div>
 
+            <!-- Kartu Edukasi Protokol AI Proctoring CAT -->
+            <div class="bg-indigo-50/70 border border-indigo-200/80 rounded-3xl p-5 text-xs text-indigo-950 flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shrink-0 text-base shadow-sm">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div class="space-y-1">
+                        <h4 class="font-black text-sm text-indigo-900">Cara Kerja Sistem Pengawasan Cerdas (AI Proctoring)</h4>
+                        <p class="text-indigo-800/90 leading-relaxed max-w-3xl">
+                            Aplikasi siswa menggunakan teknologi Google ML Kit Face Tracking di kamera depan untuk mendeteksi wajah tunggal, arah tolehan kepala (>25&deg;), dan keberadaan lebih dari 1 orang. Jika siswa berpindah ke aplikasi lain atau membagi layar, pengawas Android langsung mencatat pelanggaran dan menaikkan hitungan pelanggaran hingga batas maksimal ujian.
+                        </p>
+                    </div>
+                </div>
+                <a href="{{ route('admin.dashboard', ['tab' => 'recap']) }}" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition shadow-sm flex items-center gap-1.5 shrink-0">
+                    <i class="fa-solid fa-chart-column"></i> Kelola Hasil & Nilai di Rekap <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                </a>
+            </div>
+
         </section>
         @elseif(($tab ?? 'exams') === 'recap')
-        <!-- ================= TAB: REKAP NILAI PER KELAS ================= -->
+        <!-- ================= TAB: PENGOLAHAN NILAI & REKAPITULASI ================= -->
         <section class="space-y-6">
 
             <!-- Official Header Khusus Cetak / Print -->
             <div class="print-only hidden mb-4 pb-3 border-b-2 border-slate-900">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3">
-                        <div class="text-3xl">🎒</div>
+                        <img src="{{ asset('app-logo.png') }}" alt="Logo" class="w-10 h-10 object-contain rounded-full">
                         <div>
                             <h1 class="text-base font-black uppercase tracking-wider text-slate-900 leading-tight">
-                                LAPORAN REKAPITULASI HASIL UJIAN SISWA
+                                LAPORAN REKAPITULASI PENGOLAHAN HASIL UJIAN SISWA
                             </h1>
                             <p class="text-xs font-bold text-slate-700">
                                 Computer Assisted Test (CAT) SD &bull; {{ $recapGrade ? 'Kelas ' . $recapGrade . ' SD' : 'Semua Tingkat Kelas (1 s.d. 6 SD)' }}
@@ -799,18 +704,18 @@
                 </div>
             </div>
 
-            <!-- Banner -->
+            <!-- Banner Utama Rekap & Pengolahan Nilai -->
             <div class="bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white p-6 rounded-3xl shadow-lg border border-indigo-700/50 flex flex-wrap items-center justify-between gap-4 no-print">
                 <div class="space-y-1">
                     <div class="inline-flex items-center gap-2 bg-indigo-500/30 px-3 py-1 rounded-full text-xs font-bold text-amber-300 border border-amber-300/30">
-                        <i class="fa-solid fa-chart-bar"></i> Rekap Akademik
+                        <i class="fa-solid fa-chart-line"></i> Pengolahan Nilai & Rekap Akademik
                     </div>
                     <h2 class="text-xl font-black tracking-tight text-white flex items-center gap-2.5">
                         <i class="fa-solid fa-chart-column text-amber-400"></i>
-                        Rekap Nilai Ujian Per Kelas — Kelas 1 s.d. 6 SD
+                        Pusat Pengolahan Nilai & Rekapitulasi Hasil Ujian Siswa
                     </h2>
                     <p class="text-xs text-indigo-200">
-                        Pantau akumulasi nilai, rata-rata, kelulusan, dan riwayat ujian seluruh siswa. Siap cetak pas format A4.
+                        Kelola akumulasi nilai siswa, evaluasi ketuntasan KKM, identifikasi ujian yang belum dikerjakan, cetak rapor rekap, serta kelola atau reset nilai ujian untuk remedi.
                     </p>
                 </div>
                 <div class="flex items-center gap-2.5 flex-wrap">
@@ -847,7 +752,6 @@
                 @foreach($classRecaps as $g => $recap)
                     @php
                         $isSelected = ($recapGrade == $g);
-                        $passColor = $recap['pass_rate'] >= 75 ? 'emerald' : ($recap['pass_rate'] >= 50 ? 'amber' : 'rose');
                         $gradients = [
                             1 => ['from-blue-600','to-indigo-700'],
                             2 => ['from-violet-600','to-purple-700'],
@@ -861,20 +765,19 @@
                     @endphp
                     <a href="{{ route('admin.dashboard', ['tab' => 'recap', 'recap_grade' => $g]) }}"
                        class="relative rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-200 group block {{ $isSelected ? 'ring-4 ring-offset-2 ring-indigo-400 scale-[1.02]' : '' }}">
-                        <div class="bg-gradient-to-br {{ $from }} {{ $to }} p-4 text-white space-y-3">
-                            <!-- Kelas Label -->
+                        <div class="bg-gradient-to-br {{ $from }} {{ $to }} p-4 text-white space-y-2.5">
                             <div class="flex items-center justify-between">
                                 <span class="text-2xl font-black leading-none">{{ $g }}</span>
-                                <div class="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
-                                    <i class="fa-solid fa-school text-white text-sm"></i>
+                                <div class="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+                                    <i class="fa-solid fa-school text-white text-xs"></i>
                                 </div>
                             </div>
                             <div>
                                 <p class="text-xs font-bold text-white/80">Kelas {{ $g }} SD</p>
-                                <p class="text-lg font-black">{{ $recap['students_count'] }} Siswa</p>
+                                <p class="text-base font-black">{{ $recap['students_count'] }} Siswa</p>
+                                <p class="text-[10px] text-white/70">{{ $recap['subjects_count'] }} Mapel Ujian</p>
                             </div>
 
-                            <!-- Divider -->
                             <div class="border-t border-white/20 pt-2 space-y-1 text-[11px]">
                                 <div class="flex justify-between">
                                     <span class="text-white/70">Rata-Rata</span>
@@ -887,7 +790,7 @@
                                     </span>
                                 </div>
                                 <div class="flex justify-between">
-                                    <span class="text-white/70">Ujian</span>
+                                    <span class="text-white/70">Sesi Ujian</span>
                                     <span class="font-bold">{{ $recap['total_exams'] }}</span>
                                 </div>
                             </div>
@@ -901,171 +804,423 @@
                 @endforeach
             </div>
 
-            <!-- Header Detail Siswa -->
-            <div class="flex flex-wrap items-center justify-between gap-3 no-print">
-                <div>
-                    <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                        <i class="fa-solid fa-users text-indigo-600"></i>
-                        {{ $recapGrade ? 'Rekap Detail Siswa — Kelas ' . $recapGrade . ' SD' : 'Rekap Nilai Siswa — Semua Tingkat Kelas (1 s.d. 6 SD)' }}
-                        <span class="text-sm font-bold text-slate-500">({{ $detailedStudents->count() }} Siswa)</span>
-                    </h3>
-                    <p class="text-xs text-slate-500 mt-0.5">
-                        {{ $recapGrade ? 'Menampilkan riwayat ujian dan akumulasi nilai siswa Kelas ' . $recapGrade . ' SD.' : 'Menampilkan akumulasi nilai dan riwayat ujian seluruh siswa dari Kelas 1 sampai 6 SD.' }}
-                    </p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <button onclick="window.print()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition flex items-center gap-2 shadow-md">
-                        <i class="fa-solid fa-print text-xs"></i> Cetak Rekap {{ $recapGrade ? 'Kelas ' . $recapGrade : 'Semua Kelas' }}
-                    </button>
-                </div>
+            <!-- Sub-Nav Toggles Pengolahan Nilai (No-Print) -->
+            <div class="flex items-center gap-2 sm:gap-3 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm no-print">
+                <button type="button" id="subtabStudentsBtn" onclick="switchRecapSubTab('students')"
+                        class="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 bg-indigo-600 text-white shadow-md">
+                    <i class="fa-solid fa-users text-sm"></i>
+                    <span>Rekap Ketuntasan & Nilai Siswa ({{ $detailedStudents->count() }})</span>
+                </button>
+                <button type="button" id="subtabResultsBtn" onclick="switchRecapSubTab('results')"
+                        class="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200">
+                    <i class="fa-solid fa-file-signature text-sm text-indigo-600"></i>
+                    <span>Kelola & Reset Hasil Pengerjaan Ujian ({{ $recentResults->count() }})</span>
+                </button>
             </div>
 
-            <!-- Tabel Rekap Siswa Detail -->
-            <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-xs text-left recap-print-table">
-                        <thead class="bg-slate-50 text-slate-500 uppercase font-black text-[10px] border-b border-slate-200">
-                            <tr>
-                                <th class="py-3 px-3 text-center">#</th>
-                                <th class="py-3 px-3 text-left">Siswa</th>
-                                <th class="py-3 px-3 text-center">Kelas</th>
-                                <th class="py-3 px-3 text-center">Ujian<br>Diambil</th>
-                                <th class="py-3 px-3 text-center">Rata-Rata<br>Nilai</th>
-                                <th class="py-3 px-3 text-center">Nilai<br>Terbaik</th>
-                                <th class="py-3 px-3 text-center">Nilai<br>Terendah</th>
-                                <th class="py-3 px-3 text-center">Benar</th>
-                                <th class="py-3 px-3 text-center">Salah</th>
-                                <th class="py-3 px-3 text-center">Kosong</th>
-                                <th class="py-3 px-3 text-center">Pelanggaran</th>
-                                <th class="py-3 px-3 text-center">Status</th>
-                                <th class="py-3 px-3 text-center no-print">Detail</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            @forelse($detailedStudents as $idx => $student)
-                                @php
-                                    $avg = $student['avg_score'];
-                                    $statusBg = $avg >= 70 ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : ($avg >= 50 ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-rose-100 text-rose-800 border-rose-200');
-                                    $statusText = $avg >= 70 ? 'Lulus' : ($avg >= 50 ? 'Perlu Bimbing' : 'Perlu Remedial');
-                                    $studentId = $student['id'];
-                                @endphp
-                                <tr class="hover:bg-slate-50 transition cursor-pointer" onclick="toggleStudentDetail('detail-{{ $studentId }}')">
-                                    <td class="py-2.5 px-3 text-center text-slate-400 font-bold">{{ $idx + 1 }}</td>
-                                    <td class="py-2.5 px-3">
-                                        <div class="flex items-center gap-2.5">
-                                            <div class="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-black text-xs shrink-0 no-print">
-                                                {{ strtoupper(substr($student['name'], 0, 1)) }}
-                                            </div>
-                                            <div>
-                                                <p class="font-bold text-slate-900 leading-tight">{{ $student['name'] }}</p>
-                                                <p class="text-[10px] text-slate-400 font-mono">{{ $student['nomor_induk'] ?? $student['username'] }}</p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="py-2.5 px-3 text-center">
-                                        <span class="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-indigo-50 border border-indigo-200 text-indigo-800 badge-print">
-                                            Kls {{ $student['grade'] }}
-                                        </span>
-                                    </td>
-                                    <td class="py-2.5 px-3 text-center font-black text-slate-800">{{ $student['total_exams'] }}</td>
-                                    <td class="py-2.5 px-3 text-center">
-                                        <span class="inline-block px-2.5 py-1 rounded-xl text-xs font-black border badge-print {{ $statusBg }}">
-                                            {{ $avg }}
-                                        </span>
-                                    </td>
-                                    <td class="py-2.5 px-3 text-center font-bold text-emerald-700">{{ $student['max_score'] ?: '-' }}</td>
-                                    <td class="py-2.5 px-3 text-center font-bold text-rose-700">{{ $student['min_score'] ?: '-' }}</td>
-                                    <td class="py-2.5 px-3 text-center font-bold text-emerald-600">{{ $student['total_correct'] }}</td>
-                                    <td class="py-2.5 px-3 text-center font-bold text-rose-600">{{ $student['total_wrong'] }}</td>
-                                    <td class="py-2.5 px-3 text-center font-bold text-slate-500">{{ $student['total_unanswered'] }}</td>
-                                    <td class="py-2.5 px-3 text-center">
-                                        @if($student['violations_count'] > 0)
-                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-700 border border-rose-200 badge-print">
-                                                {{ $student['violations_count'] }} Log
-                                            </span>
-                                        @else
-                                            <span class="text-slate-300 font-bold">—</span>
-                                        @endif
-                                    </td>
-                                    <td class="py-2.5 px-3 text-center">
-                                        <span class="px-2.5 py-1 rounded-xl text-[10px] font-extrabold border badge-print {{ $statusBg }}">
-                                            {{ $statusText }}
-                                        </span>
-                                    </td>
-                                    <td class="py-2.5 px-3 text-center no-print">
-                                        <button onclick="event.stopPropagation(); toggleStudentDetail('detail-{{ $studentId }}')"
-                                                class="p-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 transition border border-indigo-200"
-                                                title="Lihat Riwayat Ujian">
-                                            <i class="fa-solid fa-chevron-down text-xs" id="icon-{{ $studentId }}"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                <!-- Row Detail Ujian Siswa (toggle) -->
-                                <tr id="detail-{{ $studentId }}" class="hidden bg-indigo-50/40 student-detail-subrow">
-                                    <td colspan="13" class="px-6 py-4">
-                                        @if($student['total_exams'] > 0)
-                                        <div class="space-y-2">
-                                            <p class="text-xs font-extrabold text-indigo-700 mb-2 flex items-center gap-2">
-                                                <i class="fa-solid fa-list-check"></i>
-                                                Riwayat Ujian {{ $student['name'] }} — Kelas {{ $student['grade'] }} SD
-                                            </p>
-                                            <div class="overflow-x-auto">
-                                                <table class="w-full text-[11px] border-collapse">
-                                                    <thead>
-                                                        <tr class="bg-white border border-slate-200 text-slate-500 uppercase text-[10px]">
-                                                            <th class="py-2 px-3 font-bold text-left">Mata Pelajaran</th>
-                                                            <th class="py-2 px-3 font-bold text-center">Nilai</th>
-                                                            <th class="py-2 px-3 font-bold text-center">Benar</th>
-                                                            <th class="py-2 px-3 font-bold text-center">Salah</th>
-                                                            <th class="py-2 px-3 font-bold text-center">Kosong</th>
-                                                            <th class="py-2 px-3 font-bold text-center">Durasi</th>
-                                                            <th class="py-2 px-3 font-bold text-left">Tanggal</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody class="divide-y divide-slate-100">
-                                                        @foreach($student['exam_results'] as $er)
-                                                            @php
-                                                                $erBg = $er->score >= 70 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : ($er->score >= 50 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-rose-700 bg-rose-50 border-rose-200');
-                                                            @endphp
-                                                            <tr class="bg-white hover:bg-slate-50">
-                                                                <td class="py-2 px-3 font-semibold text-slate-800">{{ $er->subject->title ?? 'Ujian' }}</td>
-                                                                <td class="py-2 px-3 text-center">
-                                                                    <span class="px-2.5 py-0.5 rounded-lg font-black border text-xs {{ $erBg }}">
-                                                                        {{ $er->score }}
-                                                                    </span>
-                                                                </td>
-                                                                <td class="py-2 px-3 text-center font-bold text-emerald-700">{{ $er->correct_count }}</td>
-                                                                <td class="py-2 px-3 text-center font-bold text-rose-700">{{ $er->wrong_count }}</td>
-                                                                <td class="py-2 px-3 text-center text-slate-500">{{ $er->unanswered_count }}</td>
-                                                                <td class="py-2 px-3 text-center font-mono text-slate-600">
-                                                                    {{ floor($er->time_spent_seconds / 60) }}m {{ $er->time_spent_seconds % 60 }}s
-                                                                </td>
-                                                                <td class="py-2 px-3 text-slate-500">{{ $er->created_at ? $er->created_at->format('d M Y, H:i') : '-' }}</td>
-                                                            </tr>
-                                                        @endforeach
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                        @else
-                                        <p class="text-xs text-slate-400 font-semibold py-2">
-                                            <i class="fa-solid fa-circle-info mr-1"></i>
-                                            Siswa ini belum mengambil ujian di kelas ini.
-                                        </p>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="13" class="py-10 text-center text-slate-400">
-                                        <i class="fa-solid fa-users-slash text-3xl text-slate-300 mb-2"></i>
-                                        <p class="font-semibold">Belum ada siswa terdaftar{{ $recapGrade ? ' di Kelas ' . $recapGrade . ' SD' : '' }}.</p>
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+            <!-- ================= SUB-VIEW 1: REKAP KETUNTASAN & NILAI SISWA ================= -->
+            <div id="viewRecapStudents" class="space-y-4">
+
+                <!-- Filter Controls Siswa -->
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3 no-print">
+                    <div class="flex items-center gap-2 flex-wrap flex-1">
+                        <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 focus-within:ring-2 focus-within:ring-indigo-500 min-w-[200px]">
+                            <i class="fa-solid fa-magnifying-glass text-slate-400 text-xs"></i>
+                            <input type="text" id="searchStudentInput" onkeyup="filterStudentsRecap()" placeholder="Cari nama / NISN siswa..." class="bg-transparent text-xs text-slate-800 focus:outline-none w-full">
+                        </div>
+
+                        <select id="filterCompletion" onchange="filterStudentsRecap()" class="bg-slate-50 border border-slate-200 text-xs text-slate-700 font-bold rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="">Semua Status Ketuntasan</option>
+                            <option value="complete">✓ Lengkap (Semua Ujian Selesai)</option>
+                            <option value="incomplete">Ada Ujian Belum Dikerjakan</option>
+                            <option value="no_exams">Belum Mengambil Ujian Sama Sekali</option>
+                        </select>
+
+                        <select id="filterKkm" onchange="filterStudentsRecap()" class="bg-slate-50 border border-slate-200 text-xs text-slate-700 font-bold rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="">Semua Status KKM</option>
+                            <option value="passed">Tuntas KKM (Rata-rata ≥ 70)</option>
+                            <option value="remedial">Perlu Remedial (Rata-rata < 70)</option>
+                        </select>
+                    </div>
+
+                    <div class="flex items-center gap-2 text-xs text-slate-500 font-bold">
+                        <i class="fa-solid fa-info-circle text-indigo-500"></i>
+                        <span>Klik baris siswa untuk melihat ujian yang sudah & belum dikerjakan</span>
+                    </div>
                 </div>
+
+                <!-- Tabel Rekap Siswa Detail -->
+                <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left recap-print-table" id="tableStudentsRecap">
+                            <thead class="bg-slate-50 text-slate-500 uppercase font-black text-[10px] border-b border-slate-200 whitespace-nowrap">
+                                <tr>
+                                    <th class="py-3 px-2 text-center whitespace-nowrap">#</th>
+                                    <th class="py-3 px-3 text-left whitespace-nowrap">Siswa & NISN</th>
+                                    <th class="py-3 px-2 text-center whitespace-nowrap">Kelas</th>
+                                    <th class="py-3 px-2.5 text-center whitespace-nowrap">Status Ketuntasan Ujian</th>
+                                    <th class="py-3 px-2 text-center whitespace-nowrap">Rata-Rata & Predikat</th>
+                                    <th class="py-3 px-2 text-center whitespace-nowrap">Terbaik</th>
+                                    <th class="py-3 px-2 text-center whitespace-nowrap">Terendah</th>
+                                    <th class="py-3 px-1.5 text-center whitespace-nowrap">Benar</th>
+                                    <th class="py-3 px-1.5 text-center whitespace-nowrap">Salah</th>
+                                    <th class="py-3 px-1.5 text-center whitespace-nowrap">Kosong</th>
+                                    <th class="py-3 px-2 text-center whitespace-nowrap">Pelanggaran</th>
+                                    <th class="py-3 px-2.5 text-center whitespace-nowrap">Status KKM</th>
+                                    <th class="py-3 px-2 text-center no-print whitespace-nowrap">Detail</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                @forelse($detailedStudents as $idx => $student)
+                                    @php
+                                        $avg = $student['avg_score'];
+                                        $statusBg = $avg >= 70 ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : ($avg >= 50 ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-rose-100 text-rose-800 border-rose-200');
+                                        $statusText = $avg >= 70 ? 'Tuntas KKM' : ($avg >= 50 ? 'Perlu Bimbingan' : 'Perlu Remedial');
+                                        if ($student['total_exams'] == 0) {
+                                            $statusText = 'Belum Ujian';
+                                            $statusBg = 'bg-slate-100 text-slate-700 border-slate-200';
+                                        }
+                                        $studentId = $student['id'];
+                                        $isComplete = $student['is_all_completed'];
+                                        $uncompletedCount = $student['uncompleted_count'];
+                                        $completedCount = $student['completed_exams_count'];
+                                        $totalAvail = $student['total_available_exams'];
+
+                                        $completionBadge = $isComplete
+                                            ? ['bg' => 'bg-emerald-100 text-emerald-800 border-emerald-200', 'icon' => 'fa-circle-check', 'text' => "Lengkap ({$completedCount}/{$totalAvail})"]
+                                            : ($completedCount > 0
+                                                ? ['bg' => 'bg-amber-100 text-amber-900 border-amber-200', 'icon' => 'fa-clock', 'text' => "Kurang {$uncompletedCount} Mapel ({$completedCount}/{$totalAvail})"]
+                                                : ['bg' => 'bg-slate-100 text-slate-700 border-slate-200', 'icon' => 'fa-circle-question', 'text' => "Belum Ujian (0/{$totalAvail})"]);
+
+                                        $studentNameLower = strtolower($student['name'] . ' ' . ($student['nomor_induk'] ?? '') . ' ' . $student['username']);
+                                        $completionFilterVal = $isComplete ? 'complete' : ($completedCount > 0 ? 'incomplete' : 'no_exams');
+                                        $kkmFilterVal = ($student['total_exams'] > 0 && $avg >= 70) ? 'passed' : 'remedial';
+                                    @endphp
+                                    <tr class="hover:bg-slate-50/90 transition cursor-pointer student-row"
+                                        data-name="{{ $studentNameLower }}"
+                                        data-completion="{{ $completionFilterVal }}"
+                                        data-kkm="{{ $kkmFilterVal }}"
+                                        onclick="toggleStudentDetail('detail-{{ $studentId }}')">
+                                        <td class="py-2.5 px-2 text-center text-slate-400 font-bold whitespace-nowrap">{{ $idx + 1 }}</td>
+                                        <td class="py-2.5 px-3 whitespace-nowrap">
+                                            <div class="flex items-center gap-2.5">
+                                                <div class="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-black text-xs shrink-0 no-print">
+                                                    {{ strtoupper(substr($student['name'], 0, 1)) }}
+                                                </div>
+                                                <div>
+                                                    <p class="font-bold text-slate-900 leading-tight whitespace-nowrap">{{ $student['name'] }}</p>
+                                                    <p class="text-[10px] text-slate-400 font-mono whitespace-nowrap">{{ $student['nomor_induk'] ? 'NISN: '.$student['nomor_induk'] : 'User: '.$student['username'] }}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="py-2.5 px-2 text-center whitespace-nowrap">
+                                            <span class="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-indigo-50 border border-indigo-200 text-indigo-800 badge-print whitespace-nowrap inline-block">
+                                                Kls {{ $student['grade'] }} SD
+                                            </span>
+                                        </td>
+                                        <td class="py-2.5 px-2.5 text-center whitespace-nowrap">
+                                            <span class="px-2.5 py-1 rounded-xl text-[10px] font-extrabold border badge-print whitespace-nowrap inline-flex items-center gap-1 {{ $completionBadge['bg'] }}">
+                                                <i class="fa-solid {{ $completionBadge['icon'] }} text-[9px]"></i>
+                                                {{ $completionBadge['text'] }}
+                                            </span>
+                                        </td>
+                                        <td class="py-2.5 px-2 text-center whitespace-nowrap">
+                                            <div class="inline-flex items-center gap-1.5 whitespace-nowrap">
+                                                <span class="inline-block px-2 py-0.5 rounded-lg text-xs font-black border badge-print {{ $statusBg }}">
+                                                    {{ $student['total_exams'] > 0 ? $avg : '-' }}
+                                                </span>
+                                                <span class="px-1.5 py-0.5 rounded text-[10px] font-black bg-slate-100 text-slate-700 border border-slate-200">
+                                                    {{ $student['predicate'] }}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td class="py-2.5 px-2 text-center font-bold text-emerald-700 whitespace-nowrap">{{ $student['max_score'] ?: '-' }}</td>
+                                        <td class="py-2.5 px-2 text-center font-bold text-rose-700 whitespace-nowrap">{{ $student['min_score'] ?: '-' }}</td>
+                                        <td class="py-2.5 px-1.5 text-center font-bold text-emerald-600 whitespace-nowrap">{{ $student['total_correct'] }}</td>
+                                        <td class="py-2.5 px-1.5 text-center font-bold text-rose-600 whitespace-nowrap">{{ $student['total_wrong'] }}</td>
+                                        <td class="py-2.5 px-1.5 text-center font-bold text-slate-500 whitespace-nowrap">{{ $student['total_unanswered'] }}</td>
+                                        <td class="py-2.5 px-2 text-center whitespace-nowrap">
+                                            @if($student['violations_count'] > 0)
+                                                <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-700 border border-rose-200 badge-print whitespace-nowrap inline-block">
+                                                    {{ $student['violations_count'] }} Log
+                                                </span>
+                                            @else
+                                                <span class="text-slate-300 font-bold">—</span>
+                                            @endif
+                                        </td>
+                                        <td class="py-2.5 px-2.5 text-center whitespace-nowrap">
+                                            <span class="px-2.5 py-1 rounded-xl text-[10px] font-extrabold border badge-print whitespace-nowrap inline-block {{ $statusBg }}">
+                                                {{ $statusText }}
+                                            </span>
+                                        </td>
+                                        <td class="py-2.5 px-2 text-center no-print whitespace-nowrap">
+                                            <button onclick="event.stopPropagation(); toggleStudentDetail('detail-{{ $studentId }}')"
+                                                    class="p-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 transition border border-indigo-200"
+                                                    title="Lihat Rincian Ujian Selesai & Belum Dikerjakan">
+                                                <i class="fa-solid fa-chevron-down text-xs" id="icon-{{ $studentId }}"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Row Detail Ujian Siswa (Sudah & Belum Dikerjakan + Aksi Reset Ujian) -->
+                                    <tr id="detail-{{ $studentId }}" class="hidden bg-slate-50/70 student-detail-subrow">
+                                        <td colspan="13" class="px-4 sm:px-6 py-4">
+                                            <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+                                                <!-- KOLOM KIRI (7 Cols): Ujian yang SUDAH Dikerjakan -->
+                                                <div class="lg:col-span-7 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+                                                    <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                                                        <h4 class="text-xs font-black text-slate-800 flex items-center gap-2">
+                                                            <i class="fa-solid fa-circle-check text-emerald-600"></i>
+                                                            Ujian yang SUDAH Dikerjakan ({{ $student['total_exams'] }})
+                                                        </h4>
+                                                        <span class="text-[10px] text-slate-400">Dapat di-reset jika siswa perlu remedi</span>
+                                                    </div>
+
+                                                    @if($student['total_exams'] > 0)
+                                                    <div class="overflow-x-auto">
+                                                        <table class="w-full text-[11px] border-collapse">
+                                                            <thead>
+                                                                <tr class="bg-slate-50 text-slate-500 uppercase text-[10px] border-b border-slate-200">
+                                                                    <th class="py-2 px-2.5 font-bold text-left">Mata Pelajaran</th>
+                                                                    <th class="py-2 px-2 font-bold text-center">Nilai</th>
+                                                                    <th class="py-2 px-2 font-bold text-center">B/S/K</th>
+                                                                    <th class="py-2 px-2 font-bold text-center">Durasi</th>
+                                                                    <th class="py-2 px-2 font-bold text-left">Tanggal</th>
+                                                                    <th class="py-2 px-2 text-center no-print">Aksi Olah</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody class="divide-y divide-slate-100">
+                                                                @foreach($student['exam_results'] as $er)
+                                                                    @php
+                                                                        $erBg = $er->score >= 70 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-rose-700 bg-rose-50 border-rose-200';
+                                                                        $mapelTitle = $er->subject->title ?? 'Ujian';
+                                                                    @endphp
+                                                                    <tr class="hover:bg-slate-50/80">
+                                                                        <td class="py-2.5 px-2.5 font-bold text-slate-800">
+                                                                            {{ $mapelTitle }}
+                                                                            <span class="block text-[10px] text-slate-400 font-normal whitespace-nowrap">Kls {{ $er->grade }} SD</span>
+                                                                        </td>
+                                                                        <td class="py-2.5 px-2 text-center whitespace-nowrap">
+                                                                            <span class="px-2 py-0.5 rounded-lg font-black border text-xs {{ $erBg }} whitespace-nowrap inline-block">
+                                                                                {{ $er->score }}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td class="py-2.5 px-2 text-center text-slate-600 font-mono text-[10px] whitespace-nowrap">
+                                                                            <span class="text-emerald-700 font-bold">{{ $er->correct_count }}B</span> / 
+                                                                            <span class="text-rose-700 font-bold">{{ $er->wrong_count }}S</span> / 
+                                                                            <span class="text-slate-400">{{ $er->unanswered_count }}K</span>
+                                                                        </td>
+                                                                        <td class="py-2.5 px-2 text-center font-mono text-slate-600 whitespace-nowrap">
+                                                                            {{ floor($er->time_spent_seconds / 60) }}m {{ $er->time_spent_seconds % 60 }}s
+                                                                        </td>
+                                                                        <td class="py-2.5 px-2 text-slate-500 text-[10px] whitespace-nowrap">
+                                                                            {{ $er->created_at ? $er->created_at->format('d/m/Y H:i') : '-' }}
+                                                                        </td>
+                                                                        <td class="py-2.5 px-2 text-center no-print whitespace-nowrap">
+                                                                            <form action="{{ route('admin.exam-results.delete', $er->id) }}" method="POST"
+                                                                                  onsubmit="return confirm('HAPUS / RESET UJIAN INI?\n\nSiswa: {{ $student['name'] }}\nMapel: {{ $mapelTitle }}\nSkor Saat Ini: {{ $er->score }}\n\nSetelah dihapus, nilai akan direset dan siswa dapat mengambil ulang ujian ini (remedi).');">
+                                                                                @csrf
+                                                                                @method('DELETE')
+                                                                                <button type="submit"
+                                                                                        title="Reset ujian ini agar siswa dapat mengambil remedi"
+                                                                                        class="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-[10px] transition border border-rose-200 inline-flex items-center gap-1 shadow-xs whitespace-nowrap">
+                                                                                    <i class="fa-solid fa-rotate-left text-[9px]"></i> Reset / Remedi
+                                                                                </button>
+                                                                            </form>
+                                                                        </td>
+                                                                    </tr>
+                                                                @endforeach
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                    @else
+                                                    <div class="py-6 text-center text-slate-400">
+                                                        <i class="fa-solid fa-clipboard-question text-2xl text-slate-300 mb-1"></i>
+                                                        <p class="font-bold text-xs text-slate-600">Siswa belum mengerjakan ujian apapun</p>
+                                                        <p class="text-[11px] text-slate-400">Belum ada riwayat skor pengerjaan yang tercatat di sistem.</p>
+                                                    </div>
+                                                    @endif
+                                                </div>
+
+                                                <!-- KOLOM KANAN (5 Cols): Ujian yang BELUM Dikerjakan -->
+                                                <div class="lg:col-span-5 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+                                                    <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                                                        <h4 class="text-xs font-black text-amber-900 flex items-center gap-2">
+                                                            <i class="fa-solid fa-clock-rotate-left text-amber-500"></i>
+                                                            Ujian yang BELUM Dikerjakan ({{ $student['uncompleted_count'] }})
+                                                        </h4>
+                                                        <span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 whitespace-nowrap inline-block">
+                                                            Tingkat Kelas {{ $student['grade'] }} SD
+                                                        </span>
+                                                    </div>
+
+                                                    @if($student['uncompleted_count'] > 0)
+                                                    <div class="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                                                        @foreach($student['uncompleted_subjects'] as $uncompletedSubj)
+                                                            <div class="p-2.5 rounded-xl border border-amber-200 bg-amber-50/50 flex items-center justify-between gap-3">
+                                                                <div class="flex items-center gap-2.5">
+                                                                    <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-xs shrink-0">
+                                                                        <i class="fa-solid fa-book text-xs"></i>
+                                                                    </div>
+                                                                    <div>
+                                                                        <p class="font-bold text-slate-900 text-xs">{{ $uncompletedSubj->title }}</p>
+                                                                        <p class="text-[10px] text-slate-500">
+                                                                            <i class="fa-regular fa-clock text-amber-600"></i> {{ $uncompletedSubj->duration_minutes }} menit &bull; 
+                                                                            <i class="fa-solid fa-list-ol text-slate-400"></i> {{ $uncompletedSubj->questions_count }} soal bank
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                                <span class="px-2 py-1 rounded-lg text-[10px] font-black bg-white text-amber-800 border border-amber-300 shadow-2xs shrink-0">
+                                                                    Belum Dikerjakan
+                                                                </span>
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                    @elseif($student['is_all_completed'])
+                                                    <div class="py-8 text-center text-emerald-700 bg-emerald-50/60 rounded-2xl border border-emerald-200/80 p-4">
+                                                        <i class="fa-solid fa-circle-check text-3xl text-emerald-500 mb-2"></i>
+                                                        <p class="font-black text-xs text-emerald-900">Seluruh Ujian Telah Selesai!</p>
+                                                        <p class="text-[11px] text-emerald-700 mt-0.5">Siswa telah mengerjakan semua {{ $student['total_available_exams'] }} mata pelajaran ujian di Kelas {{ $student['grade'] }} SD.</p>
+                                                    </div>
+                                                    @else
+                                                    <div class="py-8 text-center text-slate-400">
+                                                        <i class="fa-solid fa-inbox text-2xl text-slate-300 mb-1"></i>
+                                                        <p class="font-bold text-xs text-slate-600">Belum ada ujian di kelas ini</p>
+                                                        <p class="text-[11px] text-slate-400">Tambahkan ujian baru di menu Bank Soal & Ujian.</p>
+                                                    </div>
+                                                    @endif
+                                                </div>
+
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="13" class="py-12 text-center text-slate-400">
+                                            <i class="fa-solid fa-users-slash text-3xl text-slate-300 mb-2"></i>
+                                            <p class="font-bold text-slate-700">Belum ada siswa terdaftar{{ $recapGrade ? ' di Kelas ' . $recapGrade . ' SD' : '' }}.</p>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- ================= SUB-VIEW 2: KELOLA & OLAH HASIL PENGERJAAN UJIAN (HASIL DARI MONITORING) ================= -->
+            <div id="viewRecapResults" class="space-y-4 hidden">
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3 no-print">
+                    <div class="flex items-center gap-2 flex-wrap flex-1">
+                        <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 focus-within:ring-2 focus-within:ring-indigo-500 min-w-[220px]">
+                            <i class="fa-solid fa-magnifying-glass text-slate-400 text-xs"></i>
+                            <input type="text" id="searchResultsInput" onkeyup="filterRecapResultsTable()" placeholder="Cari siswa atau mata pelajaran..." class="bg-transparent text-xs text-slate-800 focus:outline-none w-full">
+                        </div>
+                    </div>
+
+                    <div class="text-xs text-slate-500 font-bold">
+                        <i class="fa-solid fa-rotate-left text-rose-500 mr-1"></i>
+                        Gunakan tombol <strong>Reset / Remedi</strong> untuk menghapus nilai ujian tertentu agar siswa dapat mengerjakan ulang.
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="p-5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                                <i class="fa-solid fa-file-signature text-indigo-600"></i>
+                                Riwayat Log Seluruh Hasil Pengerjaan Ujian Siswa ({{ $recentResults->count() }})
+                            </h3>
+                            <p class="text-xs text-slate-500">Kelola pengerjaan ujian per sesi, pantau skor kelulusan, atau reset ujian bagi siswa yang perlu remedi.</p>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left" id="tableRecapResults">
+                            <thead class="bg-slate-50 text-slate-500 uppercase font-black text-[11px] border-b border-slate-200 whitespace-nowrap">
+                                <tr>
+                                    <th class="py-3.5 px-4 whitespace-nowrap">Siswa</th>
+                                    <th class="py-3.5 px-4 whitespace-nowrap">Kelas & Ujian</th>
+                                    <th class="py-3.5 px-4 text-center whitespace-nowrap">Nilai / Skor</th>
+                                    <th class="py-3.5 px-4 whitespace-nowrap">Rincian Jawaban</th>
+                                    <th class="py-3.5 px-4 whitespace-nowrap">Waktu Pengerjaan</th>
+                                    <th class="py-3.5 px-4 whitespace-nowrap">Tanggal Ujian</th>
+                                    <th class="py-3.5 px-4 text-center whitespace-nowrap">Aksi Pengolahan</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                @forelse($recentResults as $res)
+                                    @php
+                                        $scoreBg = $res->score >= 70 ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-rose-100 text-rose-800 border-rose-200';
+                                        $resultStudentName = $res->user->name ?? 'Siswa';
+                                        $resultSubjectTitle = $res->subject->title ?? 'Ujian';
+                                    @endphp
+                                    <tr class="hover:bg-slate-50/80 transition result-log-row" data-search="{{ strtolower($resultStudentName . ' ' . $resultSubjectTitle) }}">
+                                        <td class="py-3 px-4 whitespace-nowrap">
+                                            <div class="flex items-center gap-2.5">
+                                                <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0">
+                                                    {{ strtoupper(substr($resultStudentName, 0, 1)) }}
+                                                </div>
+                                                <div>
+                                                    <p class="font-bold text-slate-900 whitespace-nowrap">{{ $resultStudentName }}</p>
+                                                    <p class="text-[11px] text-slate-400 font-mono whitespace-nowrap">{{ $res->user->nomor_induk ? 'NISN: '.$res->user->nomor_induk : ($res->user->username ?? '-') }}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="py-3 px-4 whitespace-nowrap">
+                                            <p class="font-bold text-slate-800 whitespace-nowrap">{{ $resultSubjectTitle }}</p>
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-black bg-slate-100 text-slate-600 whitespace-nowrap inline-block">
+                                                Kelas {{ $res->grade }} SD
+                                            </span>
+                                        </td>
+                                        <td class="py-3 px-4 text-center whitespace-nowrap">
+                                            <span class="px-3 py-1 rounded-xl text-sm font-black border {{ $scoreBg }} inline-block whitespace-nowrap">
+                                                {{ $res->score }}
+                                            </span>
+                                        </td>
+                                        <td class="py-3 px-4 text-slate-700 whitespace-nowrap">
+                                            <div class="space-y-0.5 text-[11px] whitespace-nowrap">
+                                                <span class="text-emerald-700 font-bold"><i class="fa-solid fa-check"></i> {{ $res->correct_count }} Benar</span> •
+                                                <span class="text-rose-700 font-bold"><i class="fa-solid fa-xmark"></i> {{ $res->wrong_count }} Salah</span> •
+                                                <span class="text-slate-500 font-bold"><i class="fa-solid fa-minus"></i> {{ $res->unanswered_count }} Kosong</span>
+                                            </div>
+                                        </td>
+                                        <td class="py-3 px-4 font-mono text-slate-600 text-[11px] whitespace-nowrap">
+                                            <i class="fa-regular fa-clock text-slate-400 mr-1"></i>
+                                            {{ floor($res->time_spent_seconds / 60) }}m {{ $res->time_spent_seconds % 60 }}s
+                                        </td>
+                                        <td class="py-3 px-4 text-slate-500 text-[11px] whitespace-nowrap">
+                                            <p class="font-semibold whitespace-nowrap">{{ $res->created_at ? $res->created_at->format('d M Y, H:i') : '-' }}</p>
+                                            <p class="text-[10px] text-slate-400 whitespace-nowrap">{{ $res->created_at ? $res->created_at->diffForHumans() : '' }}</p>
+                                        </td>
+                                        <td class="py-3 px-4 text-center whitespace-nowrap">
+                                            <form action="{{ route('admin.exam-results.delete', $res->id) }}" method="POST"
+                                                  onsubmit="return confirm('HAPUS / RESET UJIAN INI?\n\nSiswa: {{ $resultStudentName }}\nMapel: {{ $resultSubjectTitle }}\nSkor: {{ $res->score }}\n\nSetelah dihapus, ujian akan direset sehingga siswa dapat mengambil ulang ujian ini (remedi).');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit"
+                                                        class="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 font-bold text-xs transition border border-rose-200 inline-flex items-center gap-1.5 shadow-sm whitespace-nowrap">
+                                                    <i class="fa-solid fa-rotate-left text-xs"></i> Reset / Hapus
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="7" class="py-12 text-center text-slate-400">
+                                            <i class="fa-solid fa-clipboard-question text-3xl text-slate-300 mb-2"></i>
+                                            <p class="font-bold text-slate-700">Belum ada siswa yang mengambil atau menyelesaikan ujian.</p>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
             </div>
 
             <!-- Area Tanda Tangan Khusus Cetak / Print -->
@@ -1175,26 +1330,31 @@
                                             </button>
                                         </div>
                                     </td>
-                                    <td class="py-3 px-4">
-                                        @if($u->is_admin)
-                                            <span class="px-3 py-1 rounded-full text-[11px] font-extrabold bg-indigo-100 text-indigo-800 border border-indigo-200 inline-flex items-center gap-1.5">
-                                                <i class="fa-solid fa-shield-halved text-[10px]"></i> Guru / Admin
-                                            </span>
-                                        @else
-                                            <span class="px-3 py-1 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200 inline-flex items-center gap-1.5">
-                                                <i class="fa-solid fa-user-graduate text-[10px]"></i> Siswa SD
-                                            </span>
-                                        @endif
-                                    </td>
-                                    <td class="py-3 px-4 font-bold text-slate-700">
-                                        @if($u->is_admin)
-                                            <span class="text-slate-400 font-medium">Semua Kelas</span>
-                                        @else
-                                            <span class="px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-900 font-black text-xs">
-                                                Kelas {{ $u->grade }} SD
-                                            </span>
-                                        @endif
-                                    </td>
+                                        <td class="py-3 px-4">
+                                            @php $role = $u->role ?? ($u->is_admin ? 'admin' : 'student'); @endphp
+                                            @if($role === 'admin')
+                                                <span class="px-3 py-1 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200 inline-flex items-center gap-1.5">
+                                                    <i class="fa-solid fa-user-shield text-[10px]"></i> Administrator
+                                                </span>
+                                            @elseif($role === 'teacher')
+                                                <span class="px-3 py-1 rounded-full text-[11px] font-extrabold bg-indigo-100 text-indigo-800 border border-indigo-200 inline-flex items-center gap-1.5">
+                                                    <i class="fa-solid fa-chalkboard-user text-[10px]"></i> Guru / Pengawas
+                                                </span>
+                                            @else
+                                                <span class="px-3 py-1 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200 inline-flex items-center gap-1.5">
+                                                    <i class="fa-solid fa-user-graduate text-[10px]"></i> Siswa SD
+                                                </span>
+                                            @endif
+                                        </td>
+                                        <td class="py-3 px-4 font-bold text-slate-700">
+                                            @if($u->role === 'admin' || $u->role === 'teacher' || $u->is_admin)
+                                                <span class="text-slate-400 font-medium">Semua Kelas</span>
+                                            @else
+                                                <span class="px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-900 font-black text-xs">
+                                                    Kelas {{ $u->grade }} SD
+                                                </span>
+                                            @endif
+                                        </td>
                                     <td class="py-3 px-4 text-slate-400 text-[11px]">
                                         {{ $u->created_at ? $u->created_at->format('d M Y, H:i') : '-' }}
                                     </td>
@@ -1287,10 +1447,14 @@
                 </div>
 
                 <div class="pt-2">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" name="is_admin" value="1" class="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500">
-                        <span class="text-xs font-bold text-slate-800">Beri Hak Akses Guru / Admin</span>
-                    </label>
+                    <label class="block mb-1.5 text-xs font-bold text-slate-700">Hak Akses / Role *</label>
+                    <select name="role"
+                            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white text-sm"
+                            required>
+                        <option value="student">🎓 Siswa SD — Hanya bisa mengerjakan ujian</option>
+                        <option value="teacher">📋 Guru / Pengawas — Kelola soal & pantau ujian</option>
+                        <option value="admin">⭐ Administrator — Akses penuh ke semua fitur</option>
+                    </select>
                 </div>
 
                 <div class="flex items-center justify-end gap-2 pt-3 border-t">
@@ -1364,10 +1528,14 @@
                 </div>
 
                 <div class="pt-2">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" id="edit_user_is_admin" name="is_admin" value="1" class="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500">
-                        <span class="text-xs font-bold text-slate-800">Beri Hak Akses Guru / Admin</span>
-                    </label>
+                    <label class="block mb-1.5 text-xs font-bold text-slate-700">Hak Akses / Role *</label>
+                    <select id="edit_user_role" name="role"
+                            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white text-sm"
+                            required>
+                        <option value="student">🎓 Siswa SD — Hanya bisa mengerjakan ujian</option>
+                        <option value="teacher">📋 Guru / Pengawas — Kelola soal & pantau ujian</option>
+                        <option value="admin">⭐ Administrator — Akses penuh ke semua fitur</option>
+                    </select>
                 </div>
 
                 <div class="flex items-center justify-end gap-2 pt-3 border-t">
@@ -1963,7 +2131,10 @@
             document.getElementById('edit_user_current_pass').textContent = u.plain_password || 'unpkediri';
             document.getElementById('edit_user_grade').value = u.grade || 1;
             document.getElementById('edit_user_avatar').value = u.avatar || 'av1';
-            document.getElementById('edit_user_is_admin').checked = !!u.is_admin;
+
+            // Set role dropdown — fallback: derive from is_admin
+            const role = u.role || (u.is_admin ? 'teacher' : 'student');
+            document.getElementById('edit_user_role').value = role;
 
             const form = document.getElementById('formEditUser');
             form.action = `/admin/users/${u.id}`;
@@ -2038,6 +2209,83 @@
                 btn.classList.remove('bg-slate-500/20', 'text-slate-400', 'border-slate-400/30');
                 startAutoRefresh();
             }
+        }
+
+        // Switch Sub-Tab inside Rekapitulasi (Per Siswa vs Per Sesi Hasil)
+        function switchRecapSubTab(view) {
+            const viewStudents = document.getElementById('viewRecapStudents');
+            const viewResults = document.getElementById('viewRecapResults');
+            const btnStudents = document.getElementById('subtabStudentsBtn');
+            const btnResults = document.getElementById('subtabResultsBtn');
+
+            if (!viewStudents || !viewResults) return;
+
+            if (view === 'results') {
+                viewStudents.classList.add('hidden');
+                viewResults.classList.remove('hidden');
+                btnResults.className = 'flex-1 sm:flex-initial px-5 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 bg-indigo-600 text-white shadow-md';
+                btnStudents.className = 'flex-1 sm:flex-initial px-5 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200';
+            } else {
+                viewResults.classList.add('hidden');
+                viewStudents.classList.remove('hidden');
+                btnStudents.className = 'flex-1 sm:flex-initial px-5 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 bg-indigo-600 text-white shadow-md';
+                btnResults.className = 'flex-1 sm:flex-initial px-5 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200';
+            }
+        }
+
+        // Filter Rekap Siswa Table by Name, Completion, and KKM
+        function filterStudentsRecap() {
+            const query = (document.getElementById('searchStudentInput')?.value || '').toLowerCase().trim();
+            const completionFilter = document.getElementById('filterCompletion')?.value || '';
+            const kkmFilter = document.getElementById('filterKkm')?.value || '';
+
+            const rows = document.querySelectorAll('.student-row');
+            rows.forEach(row => {
+                const name = row.getAttribute('data-name') || '';
+                const comp = row.getAttribute('data-completion') || '';
+                const kkm = row.getAttribute('data-kkm') || '';
+
+                const matchesQuery = !query || name.includes(query);
+                const matchesComp = !completionFilter || comp === completionFilter;
+                const matchesKkm = !kkmFilter || kkm === kkmFilter;
+
+                const isVisible = matchesQuery && matchesComp && matchesKkm;
+                row.style.display = isVisible ? '' : 'none';
+
+                // Also hide the detail subrow if parent row is hidden
+                const detailRowId = row.getAttribute('onclick')?.match(/toggleStudentDetail\('([^']+)'\)/)?.[1];
+                if (detailRowId && !isVisible) {
+                    const detailRow = document.getElementById(detailRowId);
+                    if (detailRow) detailRow.classList.add('hidden');
+                }
+            });
+        }
+
+        // Filter Results Table inside Rekap
+        function filterRecapResultsTable() {
+            const query = (document.getElementById('searchResultsInput')?.value || '').toLowerCase().trim();
+            const rows = document.querySelectorAll('.result-log-row');
+            rows.forEach(row => {
+                const searchData = row.getAttribute('data-search') || '';
+                row.style.display = (!query || searchData.includes(query)) ? '' : 'none';
+            });
+        }
+
+        // Filter Violations Table in Monitoring Tab
+        function filterViolationsTable() {
+            const query = (document.getElementById('searchViolationInput')?.value || '').toLowerCase().trim();
+            const typeFilter = document.getElementById('filterViolationType')?.value || '';
+
+            const rows = document.querySelectorAll('.violation-row');
+            rows.forEach(row => {
+                const name = row.getAttribute('data-name') || '';
+                const type = row.getAttribute('data-type') || '';
+
+                const matchesName = !query || name.includes(query);
+                const matchesType = !typeFilter || type === typeFilter;
+
+                row.style.display = (matchesName && matchesType) ? '' : 'none';
+            });
         }
 
         // Initialize auto-refresh only on monitoring tab

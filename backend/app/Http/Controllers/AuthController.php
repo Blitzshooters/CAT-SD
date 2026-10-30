@@ -92,6 +92,7 @@ class AuthController extends Controller
             'grade'       => $user->grade,
             'avatar'      => $avatar ?: 'rabbit',
             'is_admin'    => (bool)$user->is_admin,
+            'role'        => $user->role ?: ($user->is_admin ? 'admin' : 'student'),
         ];
     }
 

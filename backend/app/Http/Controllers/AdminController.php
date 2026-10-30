@@ -11,6 +11,7 @@ use App\Models\Subject;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -22,6 +23,7 @@ class AdminController extends Controller
      */
     public function index(Request $request)
     {
+        $currentUser = Auth::user();
         $grade = $request->query('grade');
         $selectedSubjectId = $request->query('subject_id');
         $tab = $request->query('tab', 'exams');
@@ -44,12 +46,18 @@ class AdminController extends Controller
             $questions = $selectedSubject->questions;
         }
 
-        $users = User::orderBy('is_admin', 'desc')->orderBy('name')->get();
+        $users = User::orderByRaw("CASE WHEN role = 'admin' THEN 1 WHEN role = 'teacher' THEN 2 ELSE 3 END")
+            ->orderBy('name')
+            ->get();
 
         $stats = [
             'total_subjects'   => Subject::count(),
             'total_questions'  => Question::count(),
-            'total_students'   => User::where('is_admin', false)->count(),
+            'total_admins'     => User::where('role', 'admin')->count(),
+            'total_teachers'   => User::where('role', 'teacher')->count(),
+            'total_students'   => User::where(function($q) {
+                $q->where('role', 'student')->orWhereNull('role');
+            })->where('is_admin', false)->count(),
             'total_results'    => ExamResult::count(),
             'total_violations' => ProctoringLog::count(),
         ];
@@ -68,6 +76,8 @@ class AdminController extends Controller
             $recapGrade = null;
         }
 
+        $allSubjectsByGrade = Subject::withCount('questions')->orderBy('grade')->orderBy('title')->get()->groupBy('grade');
+
         $classRecaps = [];
         for ($g = 1; $g <= 6; $g++) {
             $studentsCount = User::where('is_admin', false)->where('grade', $g)->count();
@@ -81,6 +91,7 @@ class AdminController extends Controller
             $violationsCount = ProctoringLog::whereHas('user', function ($q) use ($g) {
                 $q->where('grade', $g);
             })->count();
+            $subjectsCount = $allSubjectsByGrade->get($g, collect())->count();
 
             $classRecaps[$g] = [
                 'grade'            => $g,
@@ -92,6 +103,7 @@ class AdminController extends Controller
                 'passed_count'     => $passedCount,
                 'pass_rate'        => $passRate,
                 'violations_count' => $violationsCount,
+                'subjects_count'   => $subjectsCount,
             ];
         }
 
@@ -117,7 +129,7 @@ class AdminController extends Controller
             ->orderBy('grade')
             ->orderBy('name')
             ->get()
-            ->map(function ($student) use ($recapGrade) {
+            ->map(function ($student) use ($recapGrade, $allSubjectsByGrade) {
                 $results = $recapGrade 
                     ? $student->examResults->where('grade', (int)$recapGrade)
                     : $student->examResults;
@@ -131,6 +143,40 @@ class AdminController extends Controller
                 $totalUnanswered = $results->sum('unanswered_count');
                 $totalQuestionsWorked = $totalCorrect + $totalWrong;
                 $violations = $student->proctoringLogs->count();
+
+                // Target kelas untuk evaluasi mata pelajaran
+                $targetGrade = $recapGrade ? (int)$recapGrade : (int)($student->grade ?? 1);
+                $availableSubjects = $allSubjectsByGrade->get($targetGrade, collect());
+
+                // ID ujian yang sudah diselesaikan siswa
+                $takenSubjectIds = $results->pluck('subject_id')->filter()->unique()->toArray();
+
+                // Daftar mata pelajaran yang BELUM dikerjakan oleh siswa
+                $uncompletedSubjects = $availableSubjects->reject(function ($s) use ($takenSubjectIds) {
+                    return in_array($s->id, $takenSubjectIds);
+                })->values();
+
+                $totalAvailableExams = $availableSubjects->count();
+                $completedExamsCount = count($takenSubjectIds);
+                $uncompletedCount = $uncompletedSubjects->count();
+                $isAllCompleted = $totalAvailableExams > 0 && $uncompletedCount === 0;
+
+                // Pengolahan Predikat & KKM
+                $predicate = 'D';
+                $predicateLabel = 'Perlu Remedial';
+                if ($totalExams === 0) {
+                    $predicate = '-';
+                    $predicateLabel = 'Belum Ujian';
+                } elseif ($avgScore >= 85) {
+                    $predicate = 'A';
+                    $predicateLabel = 'Sangat Baik (Tuntas)';
+                } elseif ($avgScore >= 70) {
+                    $predicate = 'B';
+                    $predicateLabel = 'Baik (Tuntas KKM)';
+                } elseif ($avgScore >= 55) {
+                    $predicate = 'C';
+                    $predicateLabel = 'Cukup (Perlu Bimbingan)';
+                }
 
                 return [
                     'id'                     => $student->id,
@@ -149,6 +195,13 @@ class AdminController extends Controller
                     'total_questions_worked' => $totalQuestionsWorked,
                     'violations_count'       => $violations,
                     'exam_results'           => $results->values(),
+                    'uncompleted_subjects'   => $uncompletedSubjects,
+                    'total_available_exams'  => $totalAvailableExams,
+                    'completed_exams_count'  => $completedExamsCount,
+                    'uncompleted_count'      => $uncompletedCount,
+                    'is_all_completed'       => $isAllCompleted,
+                    'predicate'              => $predicate,
+                    'predicate_label'        => $predicateLabel,
                 ];
             });
 
@@ -165,7 +218,8 @@ class AdminController extends Controller
             'tab',
             'classRecaps',
             'recapGrade',
-            'detailedStudents'
+            'detailedStudents',
+            'currentUser'
         ));
     }
 
@@ -441,7 +495,7 @@ class AdminController extends Controller
     }
 
     /**
-     * Store a new User (Siswa / Guru)
+     * Store a new User (Siswa / Guru / Admin)
      */
     public function storeUser(Request $request)
     {
@@ -451,9 +505,12 @@ class AdminController extends Controller
             'nomor_induk' => 'required|string|max:50',
             'password'    => 'required|string|min:4',
             'grade'       => 'required|integer|min:1|max:6',
-            'is_admin'    => 'nullable',
+            'role'        => 'nullable|string|in:admin,teacher,student',
             'avatar'      => 'nullable|string',
         ]);
+
+        $role    = $request->input('role', 'student');
+        $isAdmin = in_array($role, ['admin', 'teacher']);
 
         $user = User::create([
             'name'           => $validated['name'],
@@ -462,7 +519,8 @@ class AdminController extends Controller
             'password'       => Hash::make($validated['password']),
             'plain_password' => $validated['password'],
             'grade'          => (int)$validated['grade'],
-            'is_admin'       => !empty($request->input('is_admin')),
+            'role'           => $role,
+            'is_admin'       => $isAdmin,
             'avatar'         => $validated['avatar'] ?? 'av1',
         ]);
 
@@ -470,8 +528,9 @@ class AdminController extends Controller
             return response()->json(['success' => true, 'user' => $user], 201);
         }
 
+        $roleLabel = match($role) { 'admin' => 'Administrator', 'teacher' => 'Guru/Pengawas', default => 'Siswa' };
         return redirect()->route('admin.dashboard', ['tab' => 'users'])
-            ->with('success', 'Akun user "' . $user->name . '" berhasil ditambahkan!');
+            ->with('success', 'Akun "' . $user->name . '" (' . $roleLabel . ') berhasil ditambahkan!');
     }
 
     /**
@@ -487,22 +546,26 @@ class AdminController extends Controller
             'nomor_induk' => 'nullable|string|max:50',
             'password'    => 'nullable|string|min:4',
             'grade'       => 'required|integer|min:1|max:6',
-            'is_admin'    => 'nullable',
+            'role'        => 'nullable|string|in:admin,teacher,student',
             'avatar'      => 'nullable|string',
         ]);
 
-        $user->name = $validated['name'];
+        $role    = $request->input('role', $user->role ?: 'student');
+        $isAdmin = in_array($role, ['admin', 'teacher']);
+
+        $user->name     = $validated['name'];
         $user->username = strtolower(trim($validated['username']));
         if ($request->filled('nomor_induk')) {
             $user->nomor_induk = trim($validated['nomor_induk']);
         }
-        $user->grade = (int)$validated['grade'];
-        $user->is_admin = !empty($request->input('is_admin'));
+        $user->grade    = (int)$validated['grade'];
+        $user->role     = $role;
+        $user->is_admin = $isAdmin;
         if (!empty($validated['avatar'])) {
             $user->avatar = $validated['avatar'];
         }
         if (!empty($validated['password'])) {
-            $user->password = Hash::make($validated['password']);
+            $user->password      = Hash::make($validated['password']);
             $user->plain_password = $validated['password'];
         }
         $user->save();
@@ -511,8 +574,9 @@ class AdminController extends Controller
             return response()->json(['success' => true, 'user' => $user]);
         }
 
+        $roleLabel = match($role) { 'admin' => 'Administrator', 'teacher' => 'Guru/Pengawas', default => 'Siswa' };
         return redirect()->route('admin.dashboard', ['tab' => 'users'])
-            ->with('success', 'Akun user "' . $user->name . '" berhasil diperbarui!');
+            ->with('success', 'Akun "' . $user->name . '" (' . $roleLabel . ') berhasil diperbarui!');
     }
 
     /**

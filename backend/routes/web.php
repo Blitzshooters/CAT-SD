@@ -1,13 +1,28 @@
 <?php
 
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AdminAuthController;
 
+// Root Route: Redirect to dashboard if logged in as admin/teacher, otherwise go to login
 Route::get('/', function () {
-    return redirect()->route('admin.dashboard');
+    if (Auth::check() && Auth::user()->hasAdminAccess()) {
+        return redirect()->route('admin.dashboard');
+    }
+    return redirect()->route('admin.login');
 });
 
-Route::prefix('admin')->group(function () {
+// Authentication Routes for Admin & Teacher Web Panel
+Route::prefix('admin')->middleware(['web'])->group(function () {
+    Route::get('/login', [AdminAuthController::class, 'showLoginForm'])->name('admin.login');
+    Route::post('/login', [AdminAuthController::class, 'login'])->name('admin.login.submit');
+    Route::post('/logout', [AdminAuthController::class, 'logout'])->name('admin.logout');
+    Route::get('/logout', [AdminAuthController::class, 'logout']); // Fallback GET logout
+});
+
+// Protected Admin & Teacher Routes
+Route::prefix('admin')->middleware(['web', 'admin.auth'])->group(function () {
     Route::get('/', [AdminController::class, 'index'])->name('admin.dashboard');
 
     // Subjects (Ujian) Management
@@ -20,7 +35,7 @@ Route::prefix('admin')->group(function () {
     Route::put('/questions/{id}', [AdminController::class, 'updateQuestion'])->name('admin.questions.update');
     Route::delete('/questions/{id}', [AdminController::class, 'deleteQuestion'])->name('admin.questions.delete');
 
-    // Users (Akun Siswa & Guru) Management
+    // Users (Akun Siswa, Guru & Admin) Management
     Route::post('/users', [AdminController::class, 'storeUser'])->name('admin.users.store');
     Route::put('/users/{id}', [AdminController::class, 'updateUser'])->name('admin.users.update');
     Route::delete('/users/{id}', [AdminController::class, 'deleteUser'])->name('admin.users.delete');

@@ -19,22 +19,25 @@ class DatabaseSeeder extends Seeder
         // ──────────────────────────────────────────────
         // Initial Accounts (password: unpkediri)
         // ──────────────────────────────────────────────
-        $students = [
-            ['name' => 'Admin Guru',  'username' => 'admin',    'nomor_induk' => '198507152010011002', 'grade' => 5, 'avatar' => 'champion',  'is_admin' => true],
-            ['name' => 'Zam Zam',     'username' => 'zamzam',   'nomor_induk' => '2024001',            'grade' => 5, 'avatar' => 'rabbit',    'is_admin' => true],
-            ['name' => 'Yusuf',       'username' => 'yusuf',    'nomor_induk' => '2024002',            'grade' => 5, 'avatar' => 'bear',      'is_admin' => false],
-            ['name' => 'Yehosyua',    'username' => 'yehosyua', 'nomor_induk' => '2024003',            'grade' => 5, 'avatar' => 'robot',     'is_admin' => false],
-            ['name' => 'Cantika',     'username' => 'cantika',  'nomor_induk' => '2024004',            'grade' => 5, 'avatar' => 'astronaut', 'is_admin' => false],
+        $accounts = [
+            ['name' => 'Super Admin',       'username' => 'admin',    'nomor_induk' => '198507152010011001', 'grade' => 5, 'avatar' => 'champion',  'role' => 'admin',   'is_admin' => true],
+            ['name' => 'Guru & Pengawas',   'username' => 'guru',     'nomor_induk' => '198803152012012002', 'grade' => 5, 'avatar' => 'champion',  'role' => 'teacher', 'is_admin' => true],
+            ['name' => 'Zam Zam',           'username' => 'zamzam',   'nomor_induk' => '2024001',            'grade' => 5, 'avatar' => 'rabbit',    'role' => 'teacher', 'is_admin' => true],
+            ['name' => 'Yusuf',             'username' => 'yusuf',    'nomor_induk' => '2024002',            'grade' => 5, 'avatar' => 'bear',      'role' => 'student', 'is_admin' => false],
+            ['name' => 'Yehosyua',          'username' => 'yehosyua', 'nomor_induk' => '2024003',            'grade' => 5, 'avatar' => 'robot',     'role' => 'student', 'is_admin' => false],
+            ['name' => 'Cantika',           'username' => 'cantika',  'nomor_induk' => '2024004',            'grade' => 5, 'avatar' => 'astronaut', 'role' => 'student', 'is_admin' => false],
         ];
 
-        foreach ($students as $s) {
+        foreach ($accounts as $s) {
             $user = User::where('username', $s['username'])->first();
             if ($user) {
+                $user->role = $s['role'];
+                $user->is_admin = $s['is_admin'];
                 if (empty($user->nomor_induk)) {
                     $user->nomor_induk = $s['nomor_induk'];
-                    $user->plain_password = 'unpkediri';
-                    $user->save();
                 }
+                $user->plain_password = 'unpkediri';
+                $user->save();
             } else {
                 User::create([
                     'name'           => $s['name'],
@@ -44,6 +47,7 @@ class DatabaseSeeder extends Seeder
                     'plain_password' => 'unpkediri',
                     'grade'          => $s['grade'],
                     'avatar'         => $s['avatar'],
+                    'role'           => $s['role'],
                     'is_admin'       => $s['is_admin'],
                 ]);
             }
